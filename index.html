@@ -1,10 +1,42 @@
+Отличные правки! Сделал всё как нужно:
+ * Исправил верстку под узкие экраны (350px):
+   * Кнопки теперь автоматически становятся меньше и аккуратно ужимаются на небольших смартфонах.
+   * Добавил эластичную адаптивность (flex-wrap), чтобы кнопки гарантированно не вылезали за пределы экрана.
+ * Добавил тумблер монохромного режима (Green CRT / Amber LCD):
+   * В правом верхнем углу корпуса появилась компактная кнопка [🎨 COLOR].
+   * Она мгновенно переключает всю цветовую гамму игры с классического зеленого CRT-монитора на тот самый тёплый янтарно-желтый (Amber) подсветки легендарных телефонов Nokia!
+Обновленный код:
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stack Attack - Mobile Friendly with Cap</title>
+    <title>Stack Attack - Mobile Friendly with Theme Switch</title>
     <style>
+        :root {
+            /* Зеленый CRT по умолчанию */
+            --clr-bg: #010a02;
+            --clr-on: #00ff41;
+            --clr-dim: #005511;
+            --clr-bright: #ccffcc;
+            --clr-shadow: rgba(0, 255, 65, 0.25);
+            --clr-glow: rgba(0, 255, 65, 0.8);
+            --btn-bg: #112211;
+            --btn-active-bg: #1a331a;
+        }
+
+        /* Тёплая янтарная тема (Nokia Classic Amber) */
+        body.theme-amber {
+            --clr-bg: #0d0800;
+            --clr-on: #ffb000;
+            --clr-dim: #553b00;
+            --clr-bright: #ffea9f;
+            --clr-shadow: rgba(255, 176, 0, 0.25);
+            --clr-glow: rgba(255, 176, 0, 0.8);
+            --btn-bg: #221a00;
+            --btn-active-bg: #332600;
+        }
+
         * {
             box-sizing: border-box;
             -webkit-touch-callout: none;
@@ -19,42 +51,70 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            padding: 10px;
-            color: #00ff41;
+            padding: 6px;
+            color: var(--clr-on);
             font-family: 'Courier New', Courier, monospace;
             flex-direction: column;
-            overflow: x-hidden;
+            overflow-x: hidden;
+            transition: color 0.3s ease;
         }
 
         #vcr-body {
             background-color: #1a1a1a;
-            padding: 16px;
+            padding: 12px;
             border-radius: 12px;
             box-shadow: inset 0 0 15px #000, 0 10px 30px rgba(0,0,0,0.7);
             border: 2px solid #333;
             position: relative;
-            max-width: 100%;
+            width: 100%;
+            max-width: 700px;
             display: flex;
             flex-direction: column;
             align-items: center;
+        }
+
+        /* Шапка корпуса с мини-кнопкой темы */
+        #top-bar {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 6px;
+        }
+
+        .theme-btn {
+            background-color: #111;
+            border: 1px solid var(--clr-on);
+            color: var(--clr-on);
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 4px 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 2px 0 #000;
+        }
+
+        .theme-btn:active {
+            transform: translateY(1px);
+            box-shadow: none;
         }
 
         #display-window {
             background-color: #000;
             padding: 4px;
             border-radius: 6px;
-            border: 4px solid #444;
+            border: 3px solid #444;
             position: relative;
-            box-shadow: 0 0 25px rgba(0, 255, 65, 0.25);
+            box-shadow: 0 0 20px var(--clr-shadow);
             overflow: hidden;
             width: 100%;
-            max-width: 700px;
         }
 
         canvas {
             display: block;
-            background-color: #010a02;
-            filter: blur(0.3px) drop-shadow(0 0 4px rgba(0, 255, 65, 0.8));
+            background-color: var(--clr-bg);
+            filter: blur(0.3px) drop-shadow(0 0 4px var(--clr-glow));
             cursor: default;
             width: 100%;
             height: auto;
@@ -75,16 +135,16 @@
         }
 
         #status-bar {
-            margin-top: 10px;
+            margin-top: 8px;
             width: 100%;
             display: flex;
             justify-content: space-between;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 14px;
-            letter-spacing: 1px;
-            color: #00cc33;
-            text-shadow: 0 0 5px rgba(0, 255, 65, 0.6);
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            color: var(--clr-on);
+            text-shadow: 0 0 5px var(--clr-shadow);
         }
 
         .led-active {
@@ -92,52 +152,59 @@
             text-shadow: 0 0 6px #ff0000;
         }
 
-        /* МОБИЛЬНАЯ ПАНЕЛЬ УПРАВЛЕНИЯ */
+        /* ОПТИМИЗИРОВАННАЯ МОБИЛЬНАЯ ПАНЕЛЬ (ПОД ЭКРАНЫ ДО 350px) */
         #touch-controls {
             display: none; /* Включится автоматически для сенсоров */
             width: 100%;
-            max-width: 700px;
-            margin-top: 15px;
-            gap: 10px;
+            margin-top: 10px;
+            gap: 6px;
             justify-content: space-between;
+            flex-wrap: nowrap;
         }
 
         .touch-group {
             display: flex;
-            gap: 10px;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .touch-group-right {
+            justify-content: flex-end;
         }
 
         .touch-btn {
-            background-color: #112211;
-            border: 2px solid #00ff41;
-            color: #00ff41;
-            border-radius: 8px;
+            background-color: var(--btn-bg);
+            border: 1.5px solid var(--clr-on);
+            color: var(--clr-on);
+            border-radius: 6px;
             font-family: inherit;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
-            padding: 15px 22px;
+            padding: 12px 0;
+            flex: 1;
+            min-width: 0;
             touch-action: manipulation;
-            box-shadow: 0 4px 0 #005511;
-            text-shadow: 0 0 4px rgba(0, 255, 65, 0.6);
+            box-shadow: 0 3px 0 var(--clr-dim);
+            text-shadow: 0 0 4px var(--clr-shadow);
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
         .touch-btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 #005511;
-            background-color: #00ff41;
+            transform: translateY(3px);
+            box-shadow: 0 0 0 transparent;
+            background-color: var(--clr-on);
             color: #000;
         }
 
         .touch-btn-action {
-            border-color: #ccffcc;
-            background-color: #1a331a;
-            padding: 15px 30px;
+            border-color: var(--clr-bright);
+            background-color: var(--btn-active-bg);
+            flex: 1.4;
         }
 
-        /* Показываем кнопки только на сенсорных устройствах */
+        /* Авто-показ кнопок на сенсорных устройствах */
         @media (hover: none) and (pointer: coarse) {
             #touch-controls {
                 display: flex;
@@ -148,6 +215,10 @@
 <body>
 
     <div id="vcr-body">
+        <div id="top-bar">
+            <button class="theme-btn" id="theme-toggle">🎨 Color</button>
+        </div>
+
         <div id="display-window">
             <canvas id="gameCanvas" width="700" height="700"></canvas>
         </div>
@@ -159,13 +230,13 @@
             <div>LINES: <span id="lines-val">00</span></div>
         </div>
 
-        <!-- МОБИЛЬНАЯ ПАНЕЛЬ -->
+        <!-- КОМПАКТНАЯ МОБИЛЬНАЯ ПАНЕЛЬ -->
         <div id="touch-controls">
             <div class="touch-group">
                 <button class="touch-btn" id="btn-left">◄</button>
                 <button class="touch-btn" id="btn-right">►</button>
             </div>
-            <div class="touch-group">
+            <div class="touch-group touch-group-right">
                 <button class="touch-btn" id="btn-pause">⏸</button>
                 <button class="touch-btn touch-btn-action" id="btn-jump">JUMP</button>
             </div>
@@ -180,18 +251,36 @@ const linesEl = document.getElementById('lines-val');
 const livesEl = document.getElementById('lives-val');
 const statusTextEl = document.getElementById('status-text');
 const playLedEl = document.getElementById('play-led');
+const themeToggleBtn = document.getElementById('theme-toggle');
 
 ctx.imageSmoothingEnabled = false;
+
+// ПЕРЕКЛЮЧЕНИЕ ЦВЕТОВЫХ ТЕМ
+let currentTheme = 'green';
+themeToggleBtn.addEventListener('click', () => {
+    if (currentTheme === 'green') {
+        document.body.classList.add('theme-amber');
+        currentTheme = 'amber';
+    } else {
+        document.body.classList.remove('theme-amber');
+        currentTheme = 'green';
+    }
+});
+
+function getThemeColors() {
+    const style = getComputedStyle(document.body);
+    return {
+        bg: style.getPropertyValue('--clr-bg').trim(),
+        on: style.getPropertyValue('--clr-on').trim(),
+        dim: style.getPropertyValue('--clr-dim').trim(),
+        bright: style.getPropertyValue('--clr-bright').trim(),
+        red: '#ff3333'
+    };
+}
 
 const COLS = 14;
 const ROWS = 14;
 const BLOCK_SIZE = 50;
-
-const CLR_BG = '#010a02';
-const CLR_ON = '#00ff41';      
-const CLR_DIM = '#005511';     
-const CLR_BRIGHT = '#ccffcc'; 
-const CLR_RED = '#ff3333';
 
 let score = 0;
 let linesCleared = 0;
@@ -732,7 +821,7 @@ function drawCrane() {
     ctx.fillRect(crane.xPixel + 20, 12, 10, 20);
 }
 
-function drawFlatSquareShadow(crate) {
+function drawFlatSquareShadow(crate, colors) {
     const col = crate.targetCol;
     let landingRow = ROWS - 1;
 
@@ -762,28 +851,28 @@ function drawFlatSquareShadow(crate) {
     ctx.save();
     ctx.fillStyle = crate.type === 5 
         ? `rgba(255, 51, 51, ${alpha})` 
-        : `rgba(0, 255, 65, ${alpha})`;
+        : (currentTheme === 'amber' ? `rgba(255, 176, 0, ${alpha})` : `rgba(0, 255, 65, ${alpha})`);
         
     ctx.fillRect(shadowX, shadowY, shadowWidth, shadowHeight);
     ctx.restore();
 }
 
-function drawCrate(x, y, type) {
+function drawCrate(x, y, type, colors) {
     if (type === 5) {
-        ctx.fillStyle = CLR_RED;
+        ctx.fillStyle = colors.red;
         ctx.fillRect(x + 1, y + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
 
-        ctx.fillStyle = CLR_BG;
+        ctx.fillStyle = colors.bg;
         ctx.fillRect(x + 5, y + 5, BLOCK_SIZE - 10, BLOCK_SIZE - 10);
 
-        ctx.fillStyle = CLR_RED;
+        ctx.fillStyle = colors.red;
         ctx.fillRect(x + 8, y + 18, BLOCK_SIZE - 16, 14);
 
-        ctx.fillStyle = CLR_BRIGHT;
+        ctx.fillStyle = colors.bright;
         ctx.font = 'bold 10px "Courier New"';
         ctx.fillText("TNT", x + 13, y + 29);
 
-        ctx.strokeStyle = CLR_BRIGHT;
+        ctx.strokeStyle = colors.bright;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(x + 25, y + 5);
@@ -792,13 +881,13 @@ function drawCrate(x, y, type) {
         return;
     }
 
-    ctx.fillStyle = CLR_ON;
+    ctx.fillStyle = colors.on;
     ctx.fillRect(x + 1, y + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
 
-    ctx.fillStyle = CLR_BG;
+    ctx.fillStyle = colors.bg;
     ctx.fillRect(x + 4, y + 4, BLOCK_SIZE - 8, BLOCK_SIZE - 8);
 
-    ctx.fillStyle = CLR_ON;
+    ctx.fillStyle = colors.on;
 
     if (type === 1) {
         for (let i = 8; i < BLOCK_SIZE - 8; i += 5) {
@@ -812,49 +901,48 @@ function drawCrate(x, y, type) {
         ctx.fillRect(x + BLOCK_SIZE - 13, y + BLOCK_SIZE - 13, 5, 5);
         ctx.fillRect(x + 12, y + 22, BLOCK_SIZE - 24, 5);
     } else if (type === 3) {
-        ctx.fillStyle = CLR_BRIGHT;
+        ctx.fillStyle = colors.bright;
         ctx.fillRect(x + 10, y + 10, 15, 4);
         ctx.fillRect(x + 10, y + 10, 4, 15);
         ctx.fillRect(x + 25, y + 25, 12, 4);
     } else if (type === 4) {
-        ctx.fillStyle = CLR_BRIGHT;
+        ctx.fillStyle = colors.bright;
         ctx.fillRect(x + 21, y + 10, 8, 30);
         ctx.fillRect(x + 10, y + 21, 30, 8);
     }
 }
 
-// РИСОВАНИЕ ГРУЗЧИКА С КЕПКОЙ
-function drawPlayer(x, y) {
+// РИСОВАНИЕ ГРУЗЧИКА
+function drawPlayer(x, y, colors) {
     if (player.invincibleTimer % 2 === 1) return;
 
     // --- КЕПКА ---
-    ctx.fillStyle = CLR_ON; // Тулья кепки
+    ctx.fillStyle = colors.on;
     ctx.fillRect(x + 13, y - 2, 24, 6);
     
-    // Козырек повернут по направлению взгляда
-    ctx.fillStyle = CLR_BRIGHT;
+    ctx.fillStyle = colors.bright;
     if (player.facing === 1) {
-        ctx.fillRect(x + 25, y + 2, 14, 4); // Козырек вправо
+        ctx.fillRect(x + 25, y + 2, 14, 4);
     } else {
-        ctx.fillRect(x + 11, y + 2, 14, 4); // Козырек влево
+        ctx.fillRect(x + 11, y + 2, 14, 4);
     }
 
     // --- ГОЛОВА ---
-    ctx.fillStyle = CLR_BRIGHT;
+    ctx.fillStyle = colors.bright;
     ctx.fillRect(x + 15, y + 4, 20, 11);
     
     // Глаз
-    ctx.fillStyle = CLR_BG;
+    ctx.fillStyle = colors.bg;
     const eyeX = player.facing === 1 ? x + 28 : x + 18;
     ctx.fillRect(eyeX, y + 6, 5, 5);
 
     // --- ТУЛОВИЩЕ ---
-    ctx.fillStyle = CLR_ON;
+    ctx.fillStyle = colors.on;
     ctx.fillRect(x + 12, y + 15, 26, 20);
 
     // --- РУКИ ---
     if (player.isJumping) {
-        ctx.fillStyle = CLR_ON;
+        ctx.fillStyle = colors.on;
         ctx.fillRect(x + 2, y + 5, 10, 5);
         ctx.fillRect(x + 6, y + 10, 6, 6);
         ctx.fillRect(x + 38, y + 5, 10, 5);
@@ -865,7 +953,7 @@ function drawPlayer(x, y) {
     }
 
     // --- НОГИ ---
-    ctx.fillStyle = CLR_DIM;
+    ctx.fillStyle = colors.dim;
     let legOffset = 0;
     if (player.isMoving) {
         legOffset = Math.sin(player.walkFrame) * 4;
@@ -876,64 +964,66 @@ function drawPlayer(x, y) {
 }
 
 function draw() {
-    ctx.fillStyle = CLR_BG;
+    const colors = getThemeColors();
+
+    ctx.fillStyle = colors.bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
             const block = grid[r][c];
             if (block !== null) {
-                drawCrate(block.xPixel, block.yPixel, block.type);
+                drawCrate(block.xPixel, block.yPixel, block.type, colors);
             }
         }
     }
 
     fallingCrates.forEach(crate => {
-        drawFlatSquareShadow(crate);
+        drawFlatSquareShadow(crate, colors);
     });
 
     burnEffects.forEach(eff => {
-        ctx.fillStyle = CLR_BRIGHT;
+        ctx.fillStyle = colors.bright;
         ctx.fillRect(0, eff.row * BLOCK_SIZE, canvas.width, BLOCK_SIZE);
     });
 
     fallingCrates.forEach(crate => {
-        drawCrate(crate.xPixel, crate.yPixel, crate.type);
+        drawCrate(crate.xPixel, crate.yPixel, crate.type, colors);
     });
 
     drawCrane();
 
     if (player.alive) {
-        drawPlayer(player.xPixel, player.yPixel);
+        drawPlayer(player.xPixel, player.yPixel, colors);
     }
 
     if (isPaused && !gameOver) {
-        ctx.fillStyle = CLR_BG;
+        ctx.fillStyle = colors.bg;
         ctx.fillRect(200, 300, 300, 100);
-        ctx.strokeStyle = CLR_ON;
+        ctx.strokeStyle = colors.on;
         ctx.lineWidth = 4;
         ctx.strokeRect(200, 300, 300, 100);
 
-        ctx.fillStyle = CLR_ON;
+        ctx.fillStyle = colors.on;
         ctx.font = '26px "Courier New"';
         ctx.fillText("|| PAUSE", 280, 358);
     }
 
     if (gameOver) {
-        ctx.fillStyle = CLR_BG;
+        ctx.fillStyle = colors.bg;
         ctx.fillRect(150, 250, 400, 200);
-        ctx.strokeStyle = CLR_ON;
+        ctx.strokeStyle = colors.on;
         ctx.lineWidth = 4;
         ctx.strokeRect(150, 250, 400, 200);
 
-        ctx.fillStyle = CLR_ON;
+        ctx.fillStyle = colors.on;
         ctx.font = '28px "Courier New"';
         ctx.fillText("GAME OVER", 280, 310);
 
-        ctx.fillStyle = CLR_ON;
+        ctx.fillStyle = colors.on;
         ctx.fillRect(restartBtn.x, restartBtn.y, restartBtn.w, restartBtn.h);
 
-        ctx.fillStyle = CLR_BG;
+        ctx.fillStyle = colors.bg;
         ctx.font = 'bold 20px "Courier New"';
         ctx.fillText("NEW GAME", restartBtn.x + 50, restartBtn.y + 32);
     }
@@ -951,3 +1041,4 @@ gameLoop();
 
 </body>
 </html>
+
