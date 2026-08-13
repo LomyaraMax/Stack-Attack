@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stack Attack - Mobile Friendly with Cap</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            background-color: #050505;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            color: #00ff41;
+            font-family: 'Courier New', Courier, monospace;
+            flex-direction: column;
+            overflow: x-hidden;
+        }
+
+        #vcr-body {
+            background-color: #1a1a1a;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: inset 0 0 15px #000, 0 10px 30px rgba(0,0,0,0.7);
+            border: 2px solid #333;
+            position: relative;
+            max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #display-window {
+            background-color: #000;
+            padding: 4px;
+            border-radius: 6px;
+            border: 4px solid #444;
+            position: relative;
+            box-shadow: 0 0 25px rgba(0, 255, 65, 0.25);
+            overflow: hidden;
+            width: 100%;
+            max-width: 700px;
+        }
+
+        canvas {
+            display: block;
+            background-color: #010a02;
+            filter: blur(0.3px) drop-shadow(0 0 4px rgba(0, 255, 65, 0.8));
+            cursor: default;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1 / 1;
+        }
+
+        #display-window::after {
+            content: " ";
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.3) 50%
+            );
+            background-size: 100% 4px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        #status-bar {
+            margin-top: 10px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: #00cc33;
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.6);
+        }
+
+        .led-active {
+            color: #ff3333;
+            text-shadow: 0 0 6px #ff0000;
+        }
+
+        /* МОБИЛЬНАЯ ПАНЕЛЬ УПРАВЛЕНИЯ */
+        #touch-controls {
+            display: none; /* Включится автоматически для сенсоров */
+            width: 100%;
+            max-width: 700px;
+            margin-top: 15px;
+            gap: 10px;
+            justify-content: space-between;
+        }
+
+        .touch-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .touch-btn {
+            background-color: #112211;
+            border: 2px solid #00ff41;
+            color: #00ff41;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 20px;
+            font-weight: bold;
+            padding: 15px 22px;
+            touch-action: manipulation;
+            box-shadow: 0 4px 0 #005511;
+            text-shadow: 0 0 4px rgba(0, 255, 65, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .touch-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #005511;
+            background-color: #00ff41;
+            color: #000;
+        }
+
+        .touch-btn-action {
+            border-color: #ccffcc;
+            background-color: #1a331a;
+            padding: 15px 30px;
+        }
+
+        /* Показываем кнопки только на сенсорных устройствах */
+        @media (hover: none) and (pointer: coarse) {
+            #touch-controls {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="vcr-body">
+        <div id="display-window">
+            <canvas id="gameCanvas" width="700" height="700"></canvas>
+        </div>
+        
+        <div id="status-bar">
+            <div><span id="play-led" class="led-active">●</span> <span id="status-text">PLAY</span></div>
+            <div>LIVES: <span id="lives-val">♥♥♥</span></div>
+            <div>SCORE: <span id="score-val">0000</span></div>
+            <div>LINES: <span id="lines-val">00</span></div>
+        </div>
+
+        <!-- МОБИЛЬНАЯ ПАНЕЛЬ -->
+        <div id="touch-controls">
+            <div class="touch-group">
+                <button class="touch-btn" id="btn-left">◄</button>
+                <button class="touch-btn" id="btn-right">►</button>
+            </div>
+            <div class="touch-group">
+                <button class="touch-btn" id="btn-pause">⏸</button>
+                <button class="touch-btn touch-btn-action" id="btn-jump">JUMP</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score-val');
+const linesEl = document.getElementById('lines-val');
+const livesEl = document.getElementById('lives-val');
+const statusTextEl = document.getElementById('status-text');
+const playLedEl = document.getElementById('play-led');
+
+ctx.imageSmoothingEnabled = false;
+
+const COLS = 14;
+const ROWS = 14;
+const BLOCK_SIZE = 50;
+
+const CLR_BG = '#010a02';
+const CLR_ON = '#00ff41';      
+const CLR_DIM = '#005511';     
+const CLR_BRIGHT = '#ccffcc'; 
+const CLR_RED = '#ff3333';
+
+let score = 0;
+let linesCleared = 0;
+let lives = 3;
+let gameOver = false;
+let isPaused = false;
+
+const restartBtn = { x: 250, y: 380, w: 200, h: 50 };
+
+let grid = Array(ROWS).fill(null).map(() => Array(COLS).fill(null));
+let burnEffects = []; 
+
+const player = {
+    xPixel: 6 * BLOCK_SIZE,
+    yPixel: (ROWS - 1) * BLOCK_SIZE,
+    speedX: 6,
+    isJumping: false,
+    jumpProgress: 0,
+    jumpStartPixelY: 0,
+    targetJumpHeight: BLOCK_SIZE * 1.2,
+    facing: 1,
+    alive: true,
+    invincibleTimer: 0,
+    walkFrame: 0,
+    isMoving: false
+};
+
+let fallingCrates = [];
+
+let spawnCooldown = 0;
+let baseSpawnInterval = 70;
+
+const crane = {
+    xPixel: -100,
+    targetX: 0,
+    targetCol: 0,
+    secondTargetCol: -1,
+    state: 'idle',
+    crateType: 1,
+    secondCrateType: 1,
+    baseSpeed: 10,
+    fixedDropSpeed: 3.5
+};
+
+function updateLivesDisplay() {
+    livesEl.innerText = "♥".repeat(Math.max(0, lives));
+}
+
+function resetGame() {
+    score = 0;
+    linesCleared = 0;
+    lives = 3;
+    gameOver = false;
+    isPaused = false;
+    spawnCooldown = 0;
+    baseSpawnInterval = 70;
+    
+    grid = Array(ROWS).fill(null).map(() => Array(COLS).fill(null));
+    burnEffects = [];
+    fallingCrates = [];
+    crane.state = 'idle';
+    crane.xPixel = -100;
+
+    player.xPixel = 6 * BLOCK_SIZE;
+    player.yPixel = (ROWS - 1) * BLOCK_SIZE;
+    player.isJumping = false;
+    player.alive = true;
+    player.invincibleTimer = 0;
+    player.walkFrame = 0;
+    player.isMoving = false;
+
+    scoreEl.innerText = "0000";
+    linesEl.innerText = "00";
+    statusTextEl.innerText = "PLAY";
+    playLedEl.classList.add('led-active');
+    updateLivesDisplay();
+}
+
+function getRandomCrateType() {
+    const rand = Math.random();
+    if (rand < 0.05) return 5;        // 5% TNT
+    else if (rand < 0.06) return 4;   // 1% Life
+    else if (rand < 0.50) return 1;   // Wood
+    else if (rand < 0.80) return 2;   // Steel
+    else return 3;                    // Glass
+}
+
+function triggerCraneSpawn() {
+    if (crane.state !== 'idle') return;
+
+    const col1 = Math.floor(Math.random() * COLS);
+    
+    if (grid[0][col1] !== null) {
+        gameOver = true;
+        statusTextEl.innerText = "OVER";
+        playLedEl.classList.remove('led-active');
+        return;
+    }
+
+    crane.targetCol = col1;
+    crane.targetX = col1 * BLOCK_SIZE;
+    crane.crateType = getRandomCrateType();
+
+    const isDualDrop = Math.random() < 0.08;
+    if (isDualDrop) {
+        let col2 = Math.floor(Math.random() * COLS);
+        let attempts = 0;
+        while (col2 === col1 && attempts < 10) {
+            col2 = Math.floor(Math.random() * COLS);
+            attempts++;
+        }
+        if (col2 !== col1 && grid[0][col2] === null) {
+            crane.secondTargetCol = col2;
+            crane.secondCrateType = getRandomCrateType();
+            crane.targetCol = Math.max(col1, col2);
+            crane.targetX = crane.targetCol * BLOCK_SIZE;
+        } else {
+            crane.secondTargetCol = -1;
+        }
+    } else {
+        crane.secondTargetCol = -1;
+    }
+
+    crane.state = 'moving_in';
+}
+
+const keys = {};
+
+function togglePause() {
+    if (!gameOver) {
+        isPaused = !isPaused;
+        if (isPaused) {
+            statusTextEl.innerText = "PAUSE";
+            playLedEl.classList.remove('led-active');
+        } else {
+            statusTextEl.innerText = "PLAY";
+            playLedEl.classList.add('led-active');
+        }
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (gameOver && (e.code === 'Space' || e.code === 'Enter')) {
+        resetGame();
+        return;
+    }
+
+    if (e.code === 'KeyP' || e.code === 'Escape') {
+        togglePause();
+        return;
+    }
+
+    if (gameOver || !player.alive || isPaused) return;
+    keys[e.code] = true;
+
+    if ((e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') && !player.isJumping) {
+        startJump();
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+});
+
+// МОБИЛЬНОЕ СЕНСОРНОЕ УПРАВЛЕНИЕ
+function bindTouchButton(btnId, keyCode) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (gameOver) {
+            resetGame();
+            return;
+        }
+        if (keyCode === 'KeyP') {
+            togglePause();
+            return;
+        }
+        if (keyCode === 'Space' && !player.isJumping && !isPaused && player.alive) {
+            startJump();
+        }
+        keys[keyCode] = true;
+    });
+
+    btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        keys[keyCode] = false;
+    });
+}
+
+bindTouchButton('btn-left', 'ArrowLeft');
+bindTouchButton('btn-right', 'ArrowRight');
+bindTouchButton('btn-jump', 'Space');
+bindTouchButton('btn-pause', 'KeyP');
+
+// Форсированный показ тач-бара если девайс сенсорный
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    document.getElementById('touch-controls').style.display = 'flex';
+}
+
+canvas.addEventListener('click', (e) => {
+    if (!gameOver) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    const mouseX = (e.clientX - rect.left) * scaleX;
+    const mouseY = (e.clientY - rect.top) * scaleY;
+
+    if (mouseX >= restartBtn.x && mouseX <= restartBtn.x + restartBtn.w &&
+        mouseY >= restartBtn.y && mouseY <= restartBtn.y + restartBtn.h) {
+        resetGame();
+    }
+});
+
+function startJump() {
+    player.isJumping = true;
+    player.jumpProgress = 0;
+    player.jumpStartPixelY = player.yPixel;
+}
+
+function applyPhysicsToGrid() {
+    let changed = false;
+    for (let r = ROWS - 2; r >= 0; r--) {
+        for (let c = 0; c < COLS; c++) {
+            if (grid[r][c] !== null && grid[r + 1][c] === null) {
+                grid[r + 1][c] = grid[r][c];
+                grid[r][c] = null;
+                changed = true;
+            }
+        }
+    }
+    if (changed) setTimeout(applyPhysicsToGrid, 50);
+}
+
+function triggerTNTExplosion(centerR, centerC) {
+    for (let r = Math.max(0, centerR - 1); r <= Math.min(ROWS - 1, centerR + 1); r++) {
+        for (let c = Math.max(0, centerC - 1); c <= Math.min(COLS - 1, centerC + 1); c++) {
+            grid[r][c] = null;
+        }
+    }
+    applyPhysicsToGrid();
+}
+
+function checkLines() {
+    for (let r = ROWS - 1; r >= 0; r--) {
+        let isFull = true;
+        for (let c = 0; c < COLS; c++) {
+            if (grid[r][c] === null) {
+                isFull = false;
+                break;
+            }
+        }
+
+        if (isFull) {
+            burnEffects.push({ row: r, timer: 10 });
+
+            setTimeout(() => {
+                let hasTNT = false;
+                let tntC = 0;
+
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c]) {
+                        if (grid[r][c].type === 4 && lives < 5) {
+                            lives++;
+                            updateLivesDisplay();
+                        }
+                        if (grid[r][c].type === 5) {
+                            hasTNT = true;
+                            tntC = c;
+                        }
+                    }
+                    grid[r][c] = null;
+                }
+
+                if (hasTNT) {
+                    triggerTNTExplosion(r, tntC);
+                }
+
+                score += 150;
+                linesCleared++;
+                
+                if (baseSpawnInterval > 15) {
+                    baseSpawnInterval -= 2.5;
+                }
+
+                scoreEl.innerText = score.toString().padStart(4, '0');
+                linesEl.innerText = linesCleared.toString().padStart(2, '0');
+
+                applyPhysicsToGrid();
+            }, 300);
+        }
+    }
+}
+
+function isColliding(rect1, rect2) {
+    return rect1.x < rect2.x + rect2.w &&
+           rect1.x + rect1.w > rect2.x &&
+           rect1.y < rect2.y + rect2.h &&
+           rect1.y + rect1.h > rect2.y;
+}
+
+function update() {
+    if (gameOver || isPaused) return;
+
+    if (player.invincibleTimer > 0) player.invincibleTimer--;
+
+    const currentGridRow = Math.round(player.yPixel / BLOCK_SIZE);
+    let moveDir = 0;
+
+    if (keys['KeyA'] || keys['ArrowLeft']) {
+        player.facing = -1;
+        moveDir = -1;
+    } else if (keys['KeyD'] || keys['ArrowRight']) {
+        player.facing = 1;
+        moveDir = 1;
+    }
+
+    if (moveDir !== 0 && !player.isJumping) {
+        player.isMoving = true;
+        player.walkFrame += 0.3;
+    } else {
+        player.isMoving = false;
+        player.walkFrame = 0;
+    }
+
+    if (crane.state === 'idle') {
+        spawnCooldown--;
+        if (spawnCooldown <= 0) {
+            triggerCraneSpawn();
+        }
+    }
+
+    if (crane.state === 'moving_in') {
+        crane.xPixel += crane.baseSpeed;
+        if (crane.xPixel >= crane.targetX) {
+            crane.xPixel = crane.targetX;
+            crane.state = 'dropping';
+            
+            fallingCrates.push({
+                col: crane.targetCol,
+                targetCol: crane.targetCol,
+                xPixel: crane.targetCol * BLOCK_SIZE,
+                yPixel: 40,
+                type: crane.crateType,
+                speed: crane.fixedDropSpeed
+            });
+
+            if (crane.secondTargetCol !== -1) {
+                fallingCrates.push({
+                    col: crane.secondTargetCol,
+                    targetCol: crane.secondTargetCol,
+                    xPixel: crane.secondTargetCol * BLOCK_SIZE,
+                    yPixel: 40,
+                    type: crane.secondCrateType,
+                    speed: crane.fixedDropSpeed
+                });
+            }
+
+            crane.state = 'moving_out';
+        }
+    } else if (crane.state === 'moving_out') {
+        crane.xPixel -= crane.baseSpeed;
+        if (crane.xPixel <= -100) {
+            crane.state = 'idle';
+            spawnCooldown = baseSpawnInterval;
+        }
+    }
+
+    if (moveDir !== 0) {
+        fallingCrates.forEach(crate => {
+            const crateRect = { x: crate.xPixel, y: crate.yPixel, w: BLOCK_SIZE, h: BLOCK_SIZE };
+            const playerReachRect = {
+                x: player.xPixel + (moveDir === 1 ? 5 : -15),
+                y: player.yPixel - 12,
+                w: BLOCK_SIZE + 10,
+                h: BLOCK_SIZE + 12
+            };
+
+            if (isColliding(crateRect, playerReachRect)) {
+                const nextTargetCol = crate.col + moveDir;
+                if (nextTargetCol >= 0 && nextTargetCol < COLS && Math.abs(nextTargetCol - crate.col) <= 1) {
+                    const crateRow = Math.floor((crate.yPixel + BLOCK_SIZE / 2) / BLOCK_SIZE);
+                    if (grid[crateRow] && grid[crateRow][nextTargetCol] === null) {
+                        crate.targetCol = nextTargetCol; 
+                    }
+                }
+            }
+        });
+    }
+
+    fallingCrates.forEach(crate => {
+        const targetX = crate.targetCol * BLOCK_SIZE;
+        crate.xPixel += (targetX - crate.xPixel) * 0.2;
+        crate.col = Math.round(crate.xPixel / BLOCK_SIZE);
+    });
+
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const block = grid[r][c];
+            if (block) {
+                const targetX = c * BLOCK_SIZE;
+                const targetY = r * BLOCK_SIZE;
+
+                block.xPixel += (targetX - block.xPixel) * 0.25;
+                block.yPixel += (targetY - block.yPixel) * 0.25;
+            }
+        }
+    }
+
+    if (moveDir === -1) {
+        const targetX = player.xPixel - player.speedX;
+        const targetCol = Math.floor((targetX + 5) / BLOCK_SIZE);
+
+        if (targetCol >= 0) {
+            const blockLeft = grid[currentGridRow] ? grid[currentGridRow][targetCol] : null;
+            if (blockLeft === null) {
+                player.xPixel = Math.max(0, targetX);
+            } else {
+                const pushToCol = targetCol - 1;
+                if (pushToCol >= 0 && grid[currentGridRow][pushToCol] === null) {
+                    grid[currentGridRow][pushToCol] = blockLeft;
+                    grid[currentGridRow][targetCol] = null;
+                    player.xPixel = Math.max(0, targetX);
+                    applyPhysicsToGrid();
+                }
+            }
+        }
+    } else if (moveDir === 1) {
+        const targetX = player.xPixel + player.speedX;
+        const targetCol = Math.floor((targetX + BLOCK_SIZE - 5) / BLOCK_SIZE);
+
+        if (targetCol < COLS) {
+            const blockRight = grid[currentGridRow] ? grid[currentGridRow][targetCol] : null;
+            if (blockRight === null) {
+                player.xPixel = Math.min((COLS - 1) * BLOCK_SIZE, targetX);
+            } else {
+                const pushToCol = targetCol + 1;
+                if (pushToCol < COLS && grid[currentGridRow][pushToCol] === null) {
+                    grid[currentGridRow][pushToCol] = blockRight;
+                    grid[currentGridRow][targetCol] = null;
+                    player.xPixel = Math.min((COLS - 1) * BLOCK_SIZE, targetX);
+                    applyPhysicsToGrid();
+                }
+            }
+        }
+    }
+
+    if (player.isJumping) {
+        player.jumpProgress += 0.08;
+
+        if (player.jumpProgress >= 1) {
+            player.isJumping = false;
+            player.jumpProgress = 0;
+        } else {
+            const jumpOffset = Math.sin(player.jumpProgress * Math.PI) * player.targetJumpHeight;
+            player.yPixel = player.jumpStartPixelY - jumpOffset;
+
+            const checkCol = Math.round(player.xPixel / BLOCK_SIZE);
+            const targetRowBelow = Math.floor((player.yPixel + BLOCK_SIZE - 5) / BLOCK_SIZE);
+            
+            if (targetRowBelow < ROWS && grid[targetRowBelow] && grid[targetRowBelow][checkCol] !== null) {
+                player.yPixel = (targetRowBelow - 1) * BLOCK_SIZE;
+                player.isJumping = false;
+            }
+        }
+    } else {
+        const checkCol = Math.round(player.xPixel / BLOCK_SIZE);
+        const currentR = Math.floor(player.yPixel / BLOCK_SIZE);
+        const nextR = currentR + 1;
+
+        if (nextR < ROWS && grid[nextR] && grid[nextR][checkCol] === null) {
+            player.yPixel += 6;
+            if (player.yPixel > (ROWS - 1) * BLOCK_SIZE) {
+                player.yPixel = (ROWS - 1) * BLOCK_SIZE;
+            }
+        } else {
+            player.yPixel = currentR * BLOCK_SIZE;
+        }
+    }
+
+    for (let i = fallingCrates.length - 1; i >= 0; i--) {
+        const crate = fallingCrates[i];
+        crate.yPixel += crate.speed;
+        const crateBottomRow = Math.floor((crate.yPixel + BLOCK_SIZE - 2) / BLOCK_SIZE);
+
+        const playerCol = Math.round(player.xPixel / BLOCK_SIZE);
+        const playerR = Math.round(player.yPixel / BLOCK_SIZE);
+
+        if (crateBottomRow >= ROWS || (grid[crateBottomRow] && grid[crateBottomRow][crate.col] !== null)) {
+            const finalR = crateBottomRow - 1;
+
+            if (finalR === playerR && crate.col === playerCol && player.invincibleTimer === 0) {
+                lives--;
+                updateLivesDisplay();
+
+                burnEffects.push({ row: playerR, timer: 4 });
+
+                if (lives <= 0) {
+                    player.alive = false;
+                    gameOver = true;
+                    statusTextEl.innerText = "OVER";
+                    playLedEl.classList.remove('led-active');
+                } else {
+                    fallingCrates.splice(i, 1);
+                    player.invincibleTimer = 15;
+                }
+            } else if (finalR >= 0) {
+                if (crate.type === 5) {
+                    triggerTNTExplosion(finalR, crate.col);
+                } else {
+                    grid[finalR][crate.col] = {
+                        type: crate.type,
+                        xPixel: crate.xPixel,
+                        yPixel: crate.yPixel
+                    };
+                }
+                fallingCrates.splice(i, 1);
+
+                checkLines();
+                applyPhysicsToGrid();
+            }
+        }
+    }
+
+    burnEffects.forEach((eff, i) => {
+        eff.timer--;
+        if (eff.timer <= 0) burnEffects.splice(i, 1);
+    });
+}
+
+// --- РИСОВАНИЕ ---
+
+function drawCrane() {
+    ctx.fillStyle = '#666';
+    ctx.fillRect(0, 0, crane.xPixel + BLOCK_SIZE, 12);
+    ctx.fillRect(crane.xPixel + 20, 12, 10, 20);
+}
+
+function drawFlatSquareShadow(crate) {
+    const col = crate.targetCol;
+    let landingRow = ROWS - 1;
+
+    for (let r = 0; r < ROWS; r++) {
+        if (grid[r][col] !== null) {
+            landingRow = r - 1;
+            break;
+        }
+    }
+
+    if (landingRow < 0) return;
+
+    const targetY = (landingRow + 1) * BLOCK_SIZE; 
+    const currentY = crate.yPixel + BLOCK_SIZE;
+
+    const totalDistance = targetY - 40; 
+    const remainingDistance = Math.max(0, targetY - currentY);
+    const progress = 1 - Math.min(1, remainingDistance / totalDistance);
+
+    const shadowWidth = (BLOCK_SIZE - 10) * (0.4 + 0.6 * progress);
+    const shadowHeight = 8; 
+    const alpha = 0.25 + 0.6 * progress;
+
+    const shadowX = crate.xPixel + (BLOCK_SIZE - shadowWidth) / 2;
+    const shadowY = targetY - shadowHeight - 2;
+
+    ctx.save();
+    ctx.fillStyle = crate.type === 5 
+        ? `rgba(255, 51, 51, ${alpha})` 
+        : `rgba(0, 255, 65, ${alpha})`;
+        
+    ctx.fillRect(shadowX, shadowY, shadowWidth, shadowHeight);
+    ctx.restore();
+}
+
+function drawCrate(x, y, type) {
+    if (type === 5) {
+        ctx.fillStyle = CLR_RED;
+        ctx.fillRect(x + 1, y + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+
+        ctx.fillStyle = CLR_BG;
+        ctx.fillRect(x + 5, y + 5, BLOCK_SIZE - 10, BLOCK_SIZE - 10);
+
+        ctx.fillStyle = CLR_RED;
+        ctx.fillRect(x + 8, y + 18, BLOCK_SIZE - 16, 14);
+
+        ctx.fillStyle = CLR_BRIGHT;
+        ctx.font = 'bold 10px "Courier New"';
+        ctx.fillText("TNT", x + 13, y + 29);
+
+        ctx.strokeStyle = CLR_BRIGHT;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 25, y + 5);
+        ctx.lineTo(x + 25, y + 1);
+        ctx.stroke();
+        return;
+    }
+
+    ctx.fillStyle = CLR_ON;
+    ctx.fillRect(x + 1, y + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+
+    ctx.fillStyle = CLR_BG;
+    ctx.fillRect(x + 4, y + 4, BLOCK_SIZE - 8, BLOCK_SIZE - 8);
+
+    ctx.fillStyle = CLR_ON;
+
+    if (type === 1) {
+        for (let i = 8; i < BLOCK_SIZE - 8; i += 5) {
+            ctx.fillRect(x + i, y + i, 4, 4);
+            ctx.fillRect(x + BLOCK_SIZE - i - 4, y + i, 4, 4);
+        }
+    } else if (type === 2) {
+        ctx.fillRect(x + 8, y + 8, 5, 5);
+        ctx.fillRect(x + BLOCK_SIZE - 13, y + 8, 5, 5);
+        ctx.fillRect(x + 8, y + BLOCK_SIZE - 13, 5, 5);
+        ctx.fillRect(x + BLOCK_SIZE - 13, y + BLOCK_SIZE - 13, 5, 5);
+        ctx.fillRect(x + 12, y + 22, BLOCK_SIZE - 24, 5);
+    } else if (type === 3) {
+        ctx.fillStyle = CLR_BRIGHT;
+        ctx.fillRect(x + 10, y + 10, 15, 4);
+        ctx.fillRect(x + 10, y + 10, 4, 15);
+        ctx.fillRect(x + 25, y + 25, 12, 4);
+    } else if (type === 4) {
+        ctx.fillStyle = CLR_BRIGHT;
+        ctx.fillRect(x + 21, y + 10, 8, 30);
+        ctx.fillRect(x + 10, y + 21, 30, 8);
+    }
+}
+
+// РИСОВАНИЕ ГРУЗЧИКА С КЕПКОЙ
+function drawPlayer(x, y) {
+    if (player.invincibleTimer % 2 === 1) return;
+
+    // --- КЕПКА ---
+    ctx.fillStyle = CLR_ON; // Тулья кепки
+    ctx.fillRect(x + 13, y - 2, 24, 6);
+    
+    // Козырек повернут по направлению взгляда
+    ctx.fillStyle = CLR_BRIGHT;
+    if (player.facing === 1) {
+        ctx.fillRect(x + 25, y + 2, 14, 4); // Козырек вправо
+    } else {
+        ctx.fillRect(x + 11, y + 2, 14, 4); // Козырек влево
+    }
+
+    // --- ГОЛОВА ---
+    ctx.fillStyle = CLR_BRIGHT;
+    ctx.fillRect(x + 15, y + 4, 20, 11);
+    
+    // Глаз
+    ctx.fillStyle = CLR_BG;
+    const eyeX = player.facing === 1 ? x + 28 : x + 18;
+    ctx.fillRect(eyeX, y + 6, 5, 5);
+
+    // --- ТУЛОВИЩЕ ---
+    ctx.fillStyle = CLR_ON;
+    ctx.fillRect(x + 12, y + 15, 26, 20);
+
+    // --- РУКИ ---
+    if (player.isJumping) {
+        ctx.fillStyle = CLR_ON;
+        ctx.fillRect(x + 2, y + 5, 10, 5);
+        ctx.fillRect(x + 6, y + 10, 6, 6);
+        ctx.fillRect(x + 38, y + 5, 10, 5);
+        ctx.fillRect(x + 38, y + 10, 6, 6);
+    } else {
+        ctx.fillRect(x + 2, y + 20, 10, 5);
+        ctx.fillRect(x + 38, y + 20, 10, 5);
+    }
+
+    // --- НОГИ ---
+    ctx.fillStyle = CLR_DIM;
+    let legOffset = 0;
+    if (player.isMoving) {
+        legOffset = Math.sin(player.walkFrame) * 4;
+    }
+
+    ctx.fillRect(x + 12 + legOffset, y + 35, 10, 13);
+    ctx.fillRect(x + 28 - legOffset, y + 35, 10, 13);
+}
+
+function draw() {
+    ctx.fillStyle = CLR_BG;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const block = grid[r][c];
+            if (block !== null) {
+                drawCrate(block.xPixel, block.yPixel, block.type);
+            }
+        }
+    }
+
+    fallingCrates.forEach(crate => {
+        drawFlatSquareShadow(crate);
+    });
+
+    burnEffects.forEach(eff => {
+        ctx.fillStyle = CLR_BRIGHT;
+        ctx.fillRect(0, eff.row * BLOCK_SIZE, canvas.width, BLOCK_SIZE);
+    });
+
+    fallingCrates.forEach(crate => {
+        drawCrate(crate.xPixel, crate.yPixel, crate.type);
+    });
+
+    drawCrane();
+
+    if (player.alive) {
+        drawPlayer(player.xPixel, player.yPixel);
+    }
+
+    if (isPaused && !gameOver) {
+        ctx.fillStyle = CLR_BG;
+        ctx.fillRect(200, 300, 300, 100);
+        ctx.strokeStyle = CLR_ON;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(200, 300, 300, 100);
+
+        ctx.fillStyle = CLR_ON;
+        ctx.font = '26px "Courier New"';
+        ctx.fillText("|| PAUSE", 280, 358);
+    }
+
+    if (gameOver) {
+        ctx.fillStyle = CLR_BG;
+        ctx.fillRect(150, 250, 400, 200);
+        ctx.strokeStyle = CLR_ON;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(150, 250, 400, 200);
+
+        ctx.fillStyle = CLR_ON;
+        ctx.font = '28px "Courier New"';
+        ctx.fillText("GAME OVER", 280, 310);
+
+        ctx.fillStyle = CLR_ON;
+        ctx.fillRect(restartBtn.x, restartBtn.y, restartBtn.w, restartBtn.h);
+
+        ctx.fillStyle = CLR_BG;
+        ctx.font = 'bold 20px "Courier New"';
+        ctx.fillText("NEW GAME", restartBtn.x + 50, restartBtn.y + 32);
+    }
+}
+
+function gameLoop() {
+    update();
+    draw();
+    setTimeout(() => requestAnimationFrame(gameLoop), 1000 / 30);
+}
+
+updateLivesDisplay();
+gameLoop();
+</script>
+
+</body>
+</html>
