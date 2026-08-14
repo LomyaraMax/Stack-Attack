@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stack Attack - 8-Bit Audio Edition</title>
+    <title>Stack Attack - Advanced Gameplay</title>
     <style>
         :root {
             --clr-bg: #010a02;
@@ -215,7 +215,7 @@
             <div><span id="play-led" class="led-active">●</span> <span id="status-text">PLAY</span></div>
             <div>LIVES: <span id="lives-val">♥♥♥</span></div>
             <div>SCORE: <span id="score-val">0000</span></div>
-            <div>LINES: <span id="lines-val">00</span></div>
+            <div>LEVEL: <span id="level-val">01</span></div>
         </div>
 
         <div id="touch-controls">
@@ -231,20 +231,33 @@
     </div>
 
 <script>
-// --- 8-BIT AUDIO SYSTEM (WEB AUDIO API) ---
+// --- ПРОДВИНУТАЯ 8-БИТНАЯ АУДИОСИСТЕМА ---
 class SoundSystem {
     constructor() {
         this.ctx = null;
         this.muted = true;
-        this.musicInterval = null;
+        this.musicTimer = null;
         this.noteIndex = 0;
+        this.currentMelodyIndex = 0;
         
-        // Ретро 8-битная мелодия (Нота, Длительность в секундах)
-        this.melody = [
-            { f: 261.63, d: 0.15 }, { f: 329.63, d: 0.15 }, { f: 392.00, d: 0.15 }, { f: 523.25, d: 0.2 },
-            { f: 392.00, d: 0.15 }, { f: 329.63, d: 0.15 }, { f: 261.63, d: 0.3 },
-            { f: 293.66, d: 0.15 }, { f: 349.23, d: 0.15 }, { f: 440.00, d: 0.15 }, { f: 587.33, d: 0.2 },
-            { f: 440.00, d: 0.15 }, { f: 349.23, d: 0.15 }, { f: 293.66, d: 0.3 }
+        // Мелодия 1: Классическая ретро-тема (с разной длиной нот)
+        this.melody1 = [
+            { f: 659.25, d: 0.25 }, { f: 493.88, d: 0.125 }, { f: 523.25, d: 0.125 }, { f: 587.33, d: 0.25 },
+            { f: 523.25, d: 0.125 }, { f: 493.88, d: 0.125 }, { f: 440.00, d: 0.25 }, { f: 440.00, d: 0.125 },
+            { f: 523.25, d: 0.125 }, { f: 659.25, d: 0.25 }, { f: 587.33, d: 0.125 }, { f: 523.25, d: 0.125 },
+            { f: 493.88, d: 0.375 }, { f: 523.25, d: 0.125 }, { f: 587.33, d: 0.25 }, { f: 659.25, d: 0.25 },
+            { f: 523.25, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 440.00, d: 0.5 }, { f: 0, d: 0.25 }
+        ];
+
+        // Мелодия 2: Динамичный арпеджио-чиптюн (Action)
+        this.melody2 = [
+            { f: 261.63, d: 0.1 }, { f: 329.63, d: 0.1 }, { f: 392.00, d: 0.1 }, { f: 523.25, d: 0.1 },
+            { f: 261.63, d: 0.1 }, { f: 329.63, d: 0.1 }, { f: 392.00, d: 0.1 }, { f: 523.25, d: 0.1 },
+            { f: 220.00, d: 0.1 }, { f: 261.63, d: 0.1 }, { f: 329.63, d: 0.1 }, { f: 440.00, d: 0.1 },
+            { f: 220.00, d: 0.1 }, { f: 261.63, d: 0.1 }, { f: 329.63, d: 0.1 }, { f: 440.00, d: 0.1 },
+            { f: 174.61, d: 0.1 }, { f: 220.00, d: 0.1 }, { f: 261.63, d: 0.1 }, { f: 349.23, d: 0.1 },
+            { f: 196.00, d: 0.1 }, { f: 246.94, d: 0.1 }, { f: 293.66, d: 0.1 }, { f: 392.00, d: 0.1 },
+            { f: 261.63, d: 0.2 }, { f: 392.00, d: 0.2 }, { f: 523.25, d: 0.4 }, { f: 0, d: 0.2 }
         ];
     }
 
@@ -270,7 +283,7 @@ class SoundSystem {
     }
 
     playTone(freq, duration, type = 'square', startGain = 0.1) {
-        if (this.muted || !this.ctx) return;
+        if (this.muted || !this.ctx || freq === 0) return;
         
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -288,28 +301,23 @@ class SoundSystem {
         osc.stop(this.ctx.currentTime + duration);
     }
 
-    // --- ЗВУКОВЫЕ ЭФФЕКТЫ (SFX) ---
     jump() {
         if (this.muted || !this.ctx) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'square';
-        
         osc.frequency.setValueAtTime(150, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.12);
-        
         gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
-
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start();
         osc.stop(this.ctx.currentTime + 0.12);
     }
 
-    push() {
-        this.playTone(80, 0.08, 'sawtooth', 0.12);
-    }
+    push() { this.playTone(80, 0.08, 'sawtooth', 0.12); }
+    hit() { this.playTone(120, 0.25, 'sawtooth', 0.25); }
 
     clearLine() {
         if (this.muted || !this.ctx) return;
@@ -323,24 +331,15 @@ class SoundSystem {
         const bufferSize = this.ctx.sampleRate * 0.3;
         const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
         const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-
+        for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
         const noise = this.ctx.createBufferSource();
         noise.buffer = buffer;
-
         const gain = this.ctx.createGain();
         gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
-
         noise.connect(gain);
         gain.connect(this.ctx.destination);
         noise.start();
-    }
-
-    hit() {
-        this.playTone(120, 0.25, 'sawtooth', 0.25);
     }
 
     lifeUp() {
@@ -349,21 +348,37 @@ class SoundSystem {
         });
     }
 
-    // --- ФОНОВАЯ МУЗЫКА ---
     startMusic() {
-        if (this.musicInterval || this.muted) return;
-        this.musicInterval = setInterval(() => {
-            if (gameOver || isPaused) return;
-            const note = this.melody[this.noteIndex];
-            this.playTone(note.f, note.d, 'triangle', 0.04);
-            this.noteIndex = (this.noteIndex + 1) % this.melody.length;
-        }, 180);
+        if (this.muted || this.musicTimer) return;
+        this.playNextNote();
+    }
+
+    playNextNote() {
+        if (this.muted || gameOver || isPaused) {
+            this.musicTimer = null;
+            return;
+        }
+
+        const currentMelody = this.currentMelodyIndex === 0 ? this.melody1 : this.melody2;
+        const note = currentMelody[this.noteIndex];
+        
+        if (note.f > 0) this.playTone(note.f, note.d, 'triangle', 0.04);
+        
+        this.noteIndex++;
+        if (this.noteIndex >= currentMelody.length) {
+            this.noteIndex = 0;
+            // Переключаем мелодию после полного проигрывания
+            this.currentMelodyIndex = (this.currentMelodyIndex + 1) % 2; 
+        }
+        
+        // Планируем следующую ноту с учетом её длины
+        this.musicTimer = setTimeout(() => this.playNextNote(), note.d * 1000 + 10);
     }
 
     stopMusic() {
-        if (this.musicInterval) {
-            clearInterval(this.musicInterval);
-            this.musicInterval = null;
+        if (this.musicTimer) {
+            clearTimeout(this.musicTimer);
+            this.musicTimer = null;
         }
     }
 }
@@ -373,7 +388,7 @@ const sound = new SoundSystem();
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score-val');
-const linesEl = document.getElementById('lines-val');
+const levelEl = document.getElementById('level-val');
 const livesEl = document.getElementById('lives-val');
 const statusTextEl = document.getElementById('status-text');
 const playLedEl = document.getElementById('play-led');
@@ -382,13 +397,11 @@ const audioToggleBtn = document.getElementById('audio-toggle');
 
 ctx.imageSmoothingEnabled = false;
 
-// Звуковой переключатель
 audioToggleBtn.addEventListener('click', () => {
     const active = sound.toggleMute();
     audioToggleBtn.innerText = active ? "🔊 SOUND: ON" : "🔇 SOUND: OFF";
 });
 
-// Цветовые темы
 let currentTheme = 'green';
 themeToggleBtn.addEventListener('click', () => {
     if (currentTheme === 'green') {
@@ -416,7 +429,7 @@ const ROWS = 14;
 const BLOCK_SIZE = 50;
 
 let score = 0;
-let linesCleared = 0;
+let level = 1;
 let lives = 3;
 let gameOver = false;
 let isPaused = false;
@@ -463,12 +476,16 @@ function updateLivesDisplay() {
 
 function resetGame() {
     score = 0;
-    linesCleared = 0;
+    level = 1;
     lives = 3;
     gameOver = false;
     isPaused = false;
+    
+    // Сброс скоростей до базовых значений
     spawnCooldown = 0;
     baseSpawnInterval = 70;
+    crane.baseSpeed = 10;
+    crane.fixedDropSpeed = 3.5;
     
     grid = Array(ROWS).fill(null).map(() => Array(COLS).fill(null));
     burnEffects = [];
@@ -485,10 +502,14 @@ function resetGame() {
     player.isMoving = false;
 
     scoreEl.innerText = "0000";
-    linesEl.innerText = "00";
+    levelEl.innerText = "01";
     statusTextEl.innerText = "PLAY";
     playLedEl.classList.add('led-active');
     updateLivesDisplay();
+
+    sound.noteIndex = 0;
+    sound.currentMelodyIndex = 0;
+    sound.startMusic();
 }
 
 function getRandomCrateType() {
@@ -510,6 +531,7 @@ function triggerCraneSpawn() {
         statusTextEl.innerText = "OVER";
         playLedEl.classList.remove('led-active');
         sound.hit();
+        sound.stopMusic();
         return;
     }
 
@@ -517,7 +539,8 @@ function triggerCraneSpawn() {
     crane.targetX = col1 * BLOCK_SIZE;
     crane.crateType = getRandomCrateType();
 
-    const isDualDrop = Math.random() < 0.08;
+    // ВЕРОЯТНОСТЬ ДВОЙНОГО ЯЩИКА - 10%
+    const isDualDrop = Math.random() < 0.10;
     if (isDualDrop) {
         let col2 = Math.floor(Math.random() * COLS);
         let attempts = 0;
@@ -548,62 +571,46 @@ function togglePause() {
         if (isPaused) {
             statusTextEl.innerText = "PAUSE";
             playLedEl.classList.remove('led-active');
+            sound.stopMusic();
         } else {
             statusTextEl.innerText = "PLAY";
             playLedEl.classList.add('led-active');
+            sound.startMusic();
         }
     }
 }
 
 document.addEventListener('keydown', (e) => {
-    sound.init(); // Авто-инициализация при нажатии любой клавиши
+    sound.init(); 
     if (gameOver && (e.code === 'Space' || e.code === 'Enter')) {
         resetGame();
         return;
     }
-
     if (e.code === 'KeyP' || e.code === 'Escape') {
         togglePause();
         return;
     }
-
     if (gameOver || !player.alive || isPaused) return;
     keys[e.code] = true;
-
     if ((e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') && !player.isJumping) {
         startJump();
     }
 });
 
-document.addEventListener('keyup', (e) => {
-    keys[e.code] = false;
-});
+document.addEventListener('keyup', (e) => keys[e.code] = false);
 
 function bindTouchButton(btnId, keyCode) {
     const btn = document.getElementById(btnId);
     if (!btn) return;
-
     btn.addEventListener('touchstart', (e) => {
         e.preventDefault();
         sound.init();
-        if (gameOver) {
-            resetGame();
-            return;
-        }
-        if (keyCode === 'KeyP') {
-            togglePause();
-            return;
-        }
-        if (keyCode === 'Space' && !player.isJumping && !isPaused && player.alive) {
-            startJump();
-        }
+        if (gameOver) { resetGame(); return; }
+        if (keyCode === 'KeyP') { togglePause(); return; }
+        if (keyCode === 'Space' && !player.isJumping && !isPaused && player.alive) { startJump(); }
         keys[keyCode] = true;
     });
-
-    btn.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        keys[keyCode] = false;
-    });
+    btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyCode] = false; });
 }
 
 bindTouchButton('btn-left', 'ArrowLeft');
@@ -617,7 +624,6 @@ canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-
     const mouseX = (e.clientX - rect.left) * scaleX;
     const mouseY = (e.clientY - rect.top) * scaleY;
 
@@ -696,14 +702,15 @@ function checkLines() {
                 }
 
                 score += 150;
-                linesCleared++;
+                level++; // ПОВЫШЕНИЕ УРОВНЯ
                 
-                if (baseSpawnInterval > 15) {
-                    baseSpawnInterval -= 2.5;
-                }
+                // УВЕЛИЧЕНИЕ СКОРОСТИ НА 10%
+                baseSpawnInterval = Math.max(15, baseSpawnInterval * 0.9); // интервал спавна быстрее
+                crane.baseSpeed *= 1.1; // кран ездит быстрее
+                crane.fixedDropSpeed *= 1.1; // груз падает быстрее
 
                 scoreEl.innerText = score.toString().padStart(4, '0');
-                linesEl.innerText = linesCleared.toString().padStart(2, '0');
+                levelEl.innerText = level.toString().padStart(2, '0');
 
                 applyPhysicsToGrid();
             }, 300);
@@ -820,7 +827,6 @@ function update() {
             if (block) {
                 const targetX = c * BLOCK_SIZE;
                 const targetY = r * BLOCK_SIZE;
-
                 block.xPixel += (targetX - block.xPixel) * 0.25;
                 block.yPixel += (targetY - block.yPixel) * 0.25;
             }
@@ -923,6 +929,7 @@ function update() {
                     gameOver = true;
                     statusTextEl.innerText = "OVER";
                     playLedEl.classList.remove('led-active');
+                    sound.stopMusic();
                 } else {
                     fallingCrates.splice(i, 1);
                     player.invincibleTimer = 15;
@@ -997,17 +1004,13 @@ function drawCrate(x, y, type, colors) {
     if (type === 5) {
         ctx.fillStyle = colors.red;
         ctx.fillRect(x + 1, y + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
-
         ctx.fillStyle = colors.bg;
         ctx.fillRect(x + 5, y + 5, BLOCK_SIZE - 10, BLOCK_SIZE - 10);
-
         ctx.fillStyle = colors.red;
         ctx.fillRect(x + 8, y + 18, BLOCK_SIZE - 16, 14);
-
         ctx.fillStyle = colors.bright;
         ctx.font = 'bold 10px "Courier New"';
         ctx.fillText("TNT", x + 13, y + 29);
-
         ctx.strokeStyle = colors.bright;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -1019,10 +1022,8 @@ function drawCrate(x, y, type, colors) {
 
     ctx.fillStyle = colors.on;
     ctx.fillRect(x + 1, y + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
-
     ctx.fillStyle = colors.bg;
     ctx.fillRect(x + 4, y + 4, BLOCK_SIZE - 8, BLOCK_SIZE - 8);
-
     ctx.fillStyle = colors.on;
 
     if (type === 1) {
@@ -1107,24 +1108,17 @@ function draw() {
         }
     }
 
-    fallingCrates.forEach(crate => {
-        drawFlatSquareShadow(crate, colors);
-    });
+    fallingCrates.forEach(crate => { drawFlatSquareShadow(crate, colors); });
 
     burnEffects.forEach(eff => {
         ctx.fillStyle = colors.bright;
         ctx.fillRect(0, eff.row * BLOCK_SIZE, canvas.width, BLOCK_SIZE);
     });
 
-    fallingCrates.forEach(crate => {
-        drawCrate(crate.xPixel, crate.yPixel, crate.type, colors);
-    });
-
+    fallingCrates.forEach(crate => { drawCrate(crate.xPixel, crate.yPixel, crate.type, colors); });
     drawCrane();
 
-    if (player.alive) {
-        drawPlayer(player.xPixel, player.yPixel, colors);
-    }
+    if (player.alive) { drawPlayer(player.xPixel, player.yPixel, colors); }
 
     if (isPaused && !gameOver) {
         ctx.fillStyle = colors.bg;
