@@ -104,7 +104,7 @@
             display: block;
             background-color: var(--clr-bg);
             filter: blur(0.3px) drop-shadow(0 0 4px var(--clr-glow));
-            cursor: default;
+            cursor: pointer;
             width: 100%;
             height: auto;
             aspect-ratio: 1 / 1;
@@ -212,7 +212,7 @@
         </div>
         
         <div id="status-bar">
-            <div><span id="play-led" class="led-active">●</span> <span id="status-text">PLAY</span></div>
+            <div><span id="play-led">●</span> <span id="status-text">READY</span></div>
             <div>LIVES: <span id="lives-val">♥♥♥</span></div>
             <div>SCORE: <span id="score-val">0000</span></div>
             <div>LEVEL: <span id="level-val">01</span></div>
@@ -231,7 +231,6 @@
     </div>
 
 <script>
-// --- РАСШИРЕННАЯ 8-БИТНАЯ АУДИОСИСТЕМА С 1-МИНУТНОЙ ТЕМОЙ ---
 class SoundSystem {
     constructor() {
         this.ctx = null;
@@ -240,14 +239,12 @@ class SoundSystem {
         this.noteIndex = 0;
         this.currentMelodyIndex = 0;
 
-        // Ноты (в Гц)
-        const C3=130.81, E3=164.81, G3=196.00, A3=220.00, B3=246.94;
         const C4=261.63, D4=293.66, E4=329.63, F4=349.23, G4=392.00, A4=440.00, B4=493.88;
         const C5=523.25, D5=587.33, E5=659.25, F5=698.46, G5=783.99, A5=880.00, B5=987.77, C6=1046.50;
+        const C3=130.81, E3=164.81, G3=196.00, A3=220.00, B3=246.94, F3=174.61, D4_d=293.66;
 
-        // --- МЕЛОДИЯ 1: Полноценный 60-секундный трек (БПМ = 120, суммарная длительность = 60 сек) ---
+        // 1-минутная тема (60 сек)
         this.melody1 = [
-            // [Тема A: Вступление] (8 сек)
             { f: C4, d: 0.25 }, { f: E4, d: 0.25 }, { f: G4, d: 0.25 }, { f: C5, d: 0.25 },
             { f: B4, d: 0.25 }, { f: G4, d: 0.25 }, { f: E4, d: 0.25 }, { f: D4, d: 0.25 },
             { f: C4, d: 0.25 }, { f: E4, d: 0.25 }, { f: G4, d: 0.25 }, { f: C5, d: 0.25 },
@@ -258,7 +255,6 @@ class SoundSystem {
             { f: A3, d: 0.25 }, { f: C4, d: 0.25 }, { f: E4, d: 0.25 }, { f: A4, d: 0.25 },
             { f: B4, d: 0.50 }, { f: G4, d: 0.50 },
 
-            // [Тема A2: Вариация] (8 сек)
             { f: C5, d: 0.375 }, { f: D5, d: 0.125 }, { f: E5, d: 0.25 }, { f: C5, d: 0.25 },
             { f: A4, d: 0.25 }, { f: F4, d: 0.25 }, { f: G4, d: 0.50 },
             { f: C5, d: 0.375 }, { f: D5, d: 0.125 }, { f: E5, d: 0.25 }, { f: G5, d: 0.25 },
@@ -269,7 +265,6 @@ class SoundSystem {
             { f: D4, d: 0.25 }, { f: F4, d: 0.25 }, { f: A4, d: 0.25 }, { f: B4, d: 0.25 },
             { f: C5, d: 0.75 }, { f: 0,  d: 0.25 },
 
-            // [Тема B: Энергичная чиптюн-секция] (16 сек)
             { f: E5, d: 0.125 }, { f: E5, d: 0.125 }, { f: 0, d: 0.125 }, { f: E5, d: 0.125 },
             { f: 0,  d: 0.125 }, { f: C5, d: 0.125 }, { f: E5, d: 0.25 },
             { f: G5, d: 0.50 },  { f: G4, d: 0.50 },
@@ -284,7 +279,6 @@ class SoundSystem {
             { f: F5, d: 0.25 }, { f: F5, d: 0.25 }, { f: F5, d: 0.25 }, { f: A5, d: 0.25 },
             { f: G5, d: 0.25 }, { f: E5, d: 0.25 }, { f: C5, d: 0.25 }, { f: D5, d: 0.25 },
 
-            // [Тема C: Кульминационный мотив] (16 сек)
             { f: C5, d: 0.25 }, { f: G4, d: 0.25 }, { f: A4, d: 0.25 }, { f: E4, d: 0.25 },
             { f: F4, d: 0.25 }, { f: C4, d: 0.25 }, { f: D4, d: 0.25 }, { f: G3, d: 0.25 },
             { f: C4, d: 0.25 }, { f: E4, d: 0.25 }, { f: G4, d: 0.25 }, { f: B4, d: 0.25 },
@@ -295,7 +289,6 @@ class SoundSystem {
             { f: E5, d: 0.375 }, { f: C5, d: 0.125 }, { f: G4, d: 0.25 }, { f: E4, d: 0.25 },
             { f: D4, d: 0.50 },  { f: G4, d: 0.50 },
 
-            // [Финал/Выход к переходу] (12 сек)
             { f: C5, d: 0.25 }, { f: B4, d: 0.25 }, { f: A4, d: 0.25 }, { f: G4, d: 0.25 },
             { f: F4, d: 0.25 }, { f: E4, d: 0.25 }, { f: D4, d: 0.25 }, { f: C4, d: 0.25 },
             { f: B3, d: 0.25 }, { f: D4, d: 0.25 }, { f: G4, d: 0.25 }, { f: B4, d: 0.25 },
@@ -303,7 +296,6 @@ class SoundSystem {
             { f: C6, d: 1.00 }, { f: 0,  d: 1.00 }
         ];
 
-        // --- МЕЛОДИЯ 2: Динамичный Арпеджиатор (Вторая тема) ---
         this.melody2 = [
             { f: C4, d: 0.125 }, { f: E4, d: 0.125 }, { f: G4, d: 0.125 }, { f: C5, d: 0.125 },
             { f: E5, d: 0.125 }, { f: C5, d: 0.125 }, { f: G4, d: 0.125 }, { f: E4, d: 0.125 },
@@ -321,7 +313,7 @@ class SoundSystem {
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             this.ctx = new AudioCtx();
         }
-        if (this.ctx.state === 'suspended') {
+        if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume();
         }
     }
@@ -339,36 +331,35 @@ class SoundSystem {
 
     playTone(freq, duration, type = 'square', startGain = 0.08) {
         if (this.muted || !this.ctx || freq === 0) return;
-        
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-
-        gain.gain.setValueAtTime(startGain, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start();
-        osc.stop(this.ctx.currentTime + duration);
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(startGain, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        } catch(e) {}
     }
 
     jump() {
         if (this.muted || !this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.12);
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.12);
+        } catch(e) {}
     }
 
     push() { this.playTone(80, 0.08, 'sawtooth', 0.12); }
@@ -383,18 +374,20 @@ class SoundSystem {
 
     explosion() {
         if (this.muted || !this.ctx) return;
-        const bufferSize = this.ctx.sampleRate * 0.3;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
-        noise.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start();
+        try {
+            const bufferSize = this.ctx.sampleRate * 0.3;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+            noise.connect(gain);
+            gain.connect(this.ctx.destination);
+            noise.start();
+        } catch(e) {}
     }
 
     lifeUp() {
@@ -409,7 +402,7 @@ class SoundSystem {
     }
 
     playNextNote() {
-        if (this.muted || gameOver || isPaused) {
+        if (this.muted || gameOver || isPaused || gameStarted === false) {
             this.musicTimer = null;
             return;
         }
@@ -418,14 +411,12 @@ class SoundSystem {
         const note = currentMelody[this.noteIndex];
         
         if (note.f > 0) {
-            // Мягкий прямоугольный огибающий звук для ретро-звучания
             this.playTone(note.f, note.d, 'triangle', 0.05);
         }
         
         this.noteIndex++;
         if (this.noteIndex >= currentMelody.length) {
             this.noteIndex = 0;
-            // Автоматическое переключение на следующую мелодию после завершения текущей
             this.currentMelodyIndex = (this.currentMelodyIndex + 1) % 2; 
         }
         
@@ -453,6 +444,8 @@ const themeToggleBtn = document.getElementById('theme-toggle');
 const audioToggleBtn = document.getElementById('audio-toggle');
 
 ctx.imageSmoothingEnabled = false;
+
+let gameStarted = false;
 
 audioToggleBtn.addEventListener('click', () => {
     const active = sound.toggleMute();
@@ -491,6 +484,7 @@ let lives = 3;
 let gameOver = false;
 let isPaused = false;
 
+const startBtn = { x: 220, y: 380, w: 260, h: 50 };
 const restartBtn = { x: 250, y: 380, w: 200, h: 50 };
 
 let grid = Array(ROWS).fill(null).map(() => Array(COLS).fill(null));
@@ -529,6 +523,12 @@ const crane = {
 
 function updateLivesDisplay() {
     livesEl.innerText = "♥".repeat(Math.max(0, lives));
+}
+
+function startGame() {
+    sound.init();
+    gameStarted = true;
+    resetGame();
 }
 
 function resetGame() {
@@ -595,7 +595,6 @@ function triggerCraneSpawn() {
     crane.targetX = col1 * BLOCK_SIZE;
     crane.crateType = getRandomCrateType();
 
-    // 10% ШАНС ВЫПАДЕНИЯ ДВОЙНОГО ЯЩИКА
     const isDualDrop = Math.random() < 0.10;
     if (isDualDrop) {
         let col2 = Math.floor(Math.random() * COLS);
@@ -622,7 +621,7 @@ function triggerCraneSpawn() {
 const keys = {};
 
 function togglePause() {
-    if (!gameOver) {
+    if (!gameOver && gameStarted) {
         isPaused = !isPaused;
         if (isPaused) {
             statusTextEl.innerText = "PAUSE";
@@ -638,6 +637,10 @@ function togglePause() {
 
 document.addEventListener('keydown', (e) => {
     sound.init(); 
+    if (!gameStarted) {
+        if (e.code === 'Space' || e.code === 'Enter') startGame();
+        return;
+    }
     if (gameOver && (e.code === 'Space' || e.code === 'Enter')) {
         resetGame();
         return;
@@ -661,6 +664,7 @@ function bindTouchButton(btnId, keyCode) {
     btn.addEventListener('touchstart', (e) => {
         e.preventDefault();
         sound.init();
+        if (!gameStarted) { startGame(); return; }
         if (gameOver) { resetGame(); return; }
         if (keyCode === 'KeyP') { togglePause(); return; }
         if (keyCode === 'Space' && !player.isJumping && !isPaused && player.alive) { startJump(); }
@@ -676,16 +680,25 @@ bindTouchButton('btn-pause', 'KeyP');
 
 canvas.addEventListener('click', (e) => {
     sound.init();
-    if (!gameOver) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const mouseX = (e.clientX - rect.left) * scaleX;
     const mouseY = (e.clientY - rect.top) * scaleY;
 
-    if (mouseX >= restartBtn.x && mouseX <= restartBtn.x + restartBtn.w &&
-        mouseY >= restartBtn.y && mouseY <= restartBtn.y + restartBtn.h) {
-        resetGame();
+    if (!gameStarted) {
+        if (mouseX >= startBtn.x && mouseX <= startBtn.x + startBtn.w &&
+            mouseY >= startBtn.y && mouseY <= startBtn.y + startBtn.h) {
+            startGame();
+        }
+        return;
+    }
+
+    if (gameOver) {
+        if (mouseX >= restartBtn.x && mouseX <= restartBtn.x + restartBtn.w &&
+            mouseY >= restartBtn.y && mouseY <= restartBtn.y + restartBtn.h) {
+            resetGame();
+        }
     }
 });
 
@@ -760,7 +773,6 @@ function checkLines() {
                 score += 150;
                 level++;
                 
-                // УВЕЛИЧЕНИЕ СКОРОСТИ НА 10%
                 baseSpawnInterval = Math.max(15, baseSpawnInterval * 0.9);
                 crane.baseSpeed *= 1.1;
                 crane.fixedDropSpeed *= 1.1;
@@ -782,7 +794,7 @@ function isColliding(rect1, rect2) {
 }
 
 function update() {
-    if (gameOver || isPaused) return;
+    if (!gameStarted || gameOver || isPaused) return;
 
     if (player.invincibleTimer > 0) player.invincibleTimer--;
 
@@ -1154,6 +1166,26 @@ function draw() {
 
     ctx.fillStyle = colors.bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (!gameStarted) {
+        ctx.fillStyle = colors.bg;
+        ctx.fillRect(100, 200, 500, 300);
+        ctx.strokeStyle = colors.on;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(100, 200, 500, 300);
+
+        ctx.fillStyle = colors.on;
+        ctx.font = '32px "Courier New"';
+        ctx.fillText("STACK ATTACK", 240, 280);
+
+        ctx.fillStyle = colors.on;
+        ctx.fillRect(startBtn.x, startBtn.y, startBtn.w, startBtn.h);
+
+        ctx.fillStyle = colors.bg;
+        ctx.font = 'bold 22px "Courier New"';
+        ctx.fillText("CLICK TO START", startBtn.x + 35, startBtn.y + 32);
+        return;
+    }
 
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
