@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stack Attack - Advanced Gameplay</title>
+    <title>Stack Attack - Extended Soundtrack</title>
     <style>
         :root {
             --clr-bg: #010a02;
@@ -231,7 +231,7 @@
     </div>
 
 <script>
-// --- ПРОДВИНУТАЯ 8-БИТНАЯ АУДИОСИСТЕМА ---
+// --- РАСШИРЕННАЯ 8-БИТНАЯ АУДИОСИСТЕМА С 1-МИНУТНОЙ ТЕМОЙ ---
 class SoundSystem {
     constructor() {
         this.ctx = null;
@@ -239,25 +239,80 @@ class SoundSystem {
         this.musicTimer = null;
         this.noteIndex = 0;
         this.currentMelodyIndex = 0;
-        
-        // Мелодия 1: Классическая ретро-тема (с разной длиной нот)
+
+        // Ноты (в Гц)
+        const C3=130.81, E3=164.81, G3=196.00, A3=220.00, B3=246.94;
+        const C4=261.63, D4=293.66, E4=329.63, F4=349.23, G4=392.00, A4=440.00, B4=493.88;
+        const C5=523.25, D5=587.33, E5=659.25, F5=698.46, G5=783.99, A5=880.00, B5=987.77, C6=1046.50;
+
+        // --- МЕЛОДИЯ 1: Полноценный 60-секундный трек (БПМ = 120, суммарная длительность = 60 сек) ---
         this.melody1 = [
-            { f: 659.25, d: 0.25 }, { f: 493.88, d: 0.125 }, { f: 523.25, d: 0.125 }, { f: 587.33, d: 0.25 },
-            { f: 523.25, d: 0.125 }, { f: 493.88, d: 0.125 }, { f: 440.00, d: 0.25 }, { f: 440.00, d: 0.125 },
-            { f: 523.25, d: 0.125 }, { f: 659.25, d: 0.25 }, { f: 587.33, d: 0.125 }, { f: 523.25, d: 0.125 },
-            { f: 493.88, d: 0.375 }, { f: 523.25, d: 0.125 }, { f: 587.33, d: 0.25 }, { f: 659.25, d: 0.25 },
-            { f: 523.25, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 440.00, d: 0.5 }, { f: 0, d: 0.25 }
+            // [Тема A: Вступление] (8 сек)
+            { f: C4, d: 0.25 }, { f: E4, d: 0.25 }, { f: G4, d: 0.25 }, { f: C5, d: 0.25 },
+            { f: B4, d: 0.25 }, { f: G4, d: 0.25 }, { f: E4, d: 0.25 }, { f: D4, d: 0.25 },
+            { f: C4, d: 0.25 }, { f: E4, d: 0.25 }, { f: G4, d: 0.25 }, { f: C5, d: 0.25 },
+            { f: D5, d: 0.50 }, { f: B4, d: 0.50 },
+
+            { f: A3, d: 0.25 }, { f: C4, d: 0.25 }, { f: E4, d: 0.25 }, { f: A4, d: 0.25 },
+            { f: G4, d: 0.25 }, { f: E4, d: 0.25 }, { f: C4, d: 0.25 }, { f: B3, d: 0.25 },
+            { f: A3, d: 0.25 }, { f: C4, d: 0.25 }, { f: E4, d: 0.25 }, { f: A4, d: 0.25 },
+            { f: B4, d: 0.50 }, { f: G4, d: 0.50 },
+
+            // [Тема A2: Вариация] (8 сек)
+            { f: C5, d: 0.375 }, { f: D5, d: 0.125 }, { f: E5, d: 0.25 }, { f: C5, d: 0.25 },
+            { f: A4, d: 0.25 }, { f: F4, d: 0.25 }, { f: G4, d: 0.50 },
+            { f: C5, d: 0.375 }, { f: D5, d: 0.125 }, { f: E5, d: 0.25 }, { f: G5, d: 0.25 },
+            { f: F5, d: 0.50 }, { f: D5, d: 0.50 },
+
+            { f: E5, d: 0.25 }, { f: D5, d: 0.25 }, { f: C5, d: 0.25 }, { f: B4, d: 0.25 },
+            { f: A4, d: 0.25 }, { f: G4, d: 0.25 }, { f: F4, d: 0.25 }, { f: E4, d: 0.25 },
+            { f: D4, d: 0.25 }, { f: F4, d: 0.25 }, { f: A4, d: 0.25 }, { f: B4, d: 0.25 },
+            { f: C5, d: 0.75 }, { f: 0,  d: 0.25 },
+
+            // [Тема B: Энергичная чиптюн-секция] (16 сек)
+            { f: E5, d: 0.125 }, { f: E5, d: 0.125 }, { f: 0, d: 0.125 }, { f: E5, d: 0.125 },
+            { f: 0,  d: 0.125 }, { f: C5, d: 0.125 }, { f: E5, d: 0.25 },
+            { f: G5, d: 0.50 },  { f: G4, d: 0.50 },
+
+            { f: C5, d: 0.375 }, { f: G4, d: 0.125 }, { f: 0, d: 0.25 }, { f: E4, d: 0.25 },
+            { f: A4, d: 0.25 },  { f: B4, d: 0.25 },  { f: A4, d: 0.25 }, { f: G4, d: 0.25 },
+
+            { f: E5, d: 0.125 }, { f: E5, d: 0.125 }, { f: 0, d: 0.125 }, { f: E5, d: 0.125 },
+            { f: 0,  d: 0.125 }, { f: C5, d: 0.125 }, { f: E5, d: 0.25 },
+            { f: G5, d: 0.50 },  { f: G4, d: 0.50 },
+
+            { f: F5, d: 0.25 }, { f: F5, d: 0.25 }, { f: F5, d: 0.25 }, { f: A5, d: 0.25 },
+            { f: G5, d: 0.25 }, { f: E5, d: 0.25 }, { f: C5, d: 0.25 }, { f: D5, d: 0.25 },
+
+            // [Тема C: Кульминационный мотив] (16 сек)
+            { f: C5, d: 0.25 }, { f: G4, d: 0.25 }, { f: A4, d: 0.25 }, { f: E4, d: 0.25 },
+            { f: F4, d: 0.25 }, { f: C4, d: 0.25 }, { f: D4, d: 0.25 }, { f: G3, d: 0.25 },
+            { f: C4, d: 0.25 }, { f: E4, d: 0.25 }, { f: G4, d: 0.25 }, { f: B4, d: 0.25 },
+            { f: C5, d: 0.50 }, { f: G4, d: 0.50 },
+
+            { f: A4, d: 0.375 }, { f: B4, d: 0.125 }, { f: C5, d: 0.25 }, { f: A4, d: 0.25 },
+            { f: F5, d: 0.50 },  { f: D5, d: 0.50 },
+            { f: E5, d: 0.375 }, { f: C5, d: 0.125 }, { f: G4, d: 0.25 }, { f: E4, d: 0.25 },
+            { f: D4, d: 0.50 },  { f: G4, d: 0.50 },
+
+            // [Финал/Выход к переходу] (12 сек)
+            { f: C5, d: 0.25 }, { f: B4, d: 0.25 }, { f: A4, d: 0.25 }, { f: G4, d: 0.25 },
+            { f: F4, d: 0.25 }, { f: E4, d: 0.25 }, { f: D4, d: 0.25 }, { f: C4, d: 0.25 },
+            { f: B3, d: 0.25 }, { f: D4, d: 0.25 }, { f: G4, d: 0.25 }, { f: B4, d: 0.25 },
+            { f: C5, d: 0.50 }, { f: G5, d: 0.50 },
+            { f: C6, d: 1.00 }, { f: 0,  d: 1.00 }
         ];
 
-        // Мелодия 2: Динамичный арпеджио-чиптюн (Action)
+        // --- МЕЛОДИЯ 2: Динамичный Арпеджиатор (Вторая тема) ---
         this.melody2 = [
-            { f: 261.63, d: 0.1 }, { f: 329.63, d: 0.1 }, { f: 392.00, d: 0.1 }, { f: 523.25, d: 0.1 },
-            { f: 261.63, d: 0.1 }, { f: 329.63, d: 0.1 }, { f: 392.00, d: 0.1 }, { f: 523.25, d: 0.1 },
-            { f: 220.00, d: 0.1 }, { f: 261.63, d: 0.1 }, { f: 329.63, d: 0.1 }, { f: 440.00, d: 0.1 },
-            { f: 220.00, d: 0.1 }, { f: 261.63, d: 0.1 }, { f: 329.63, d: 0.1 }, { f: 440.00, d: 0.1 },
-            { f: 174.61, d: 0.1 }, { f: 220.00, d: 0.1 }, { f: 261.63, d: 0.1 }, { f: 349.23, d: 0.1 },
-            { f: 196.00, d: 0.1 }, { f: 246.94, d: 0.1 }, { f: 293.66, d: 0.1 }, { f: 392.00, d: 0.1 },
-            { f: 261.63, d: 0.2 }, { f: 392.00, d: 0.2 }, { f: 523.25, d: 0.4 }, { f: 0, d: 0.2 }
+            { f: C4, d: 0.125 }, { f: E4, d: 0.125 }, { f: G4, d: 0.125 }, { f: C5, d: 0.125 },
+            { f: E5, d: 0.125 }, { f: C5, d: 0.125 }, { f: G4, d: 0.125 }, { f: E4, d: 0.125 },
+            { f: A3, d: 0.125 }, { f: C4, d: 0.125 }, { f: E4, d: 0.125 }, { f: A4, d: 0.125 },
+            { f: C5, d: 0.125 }, { f: A4, d: 0.125 }, { f: E4, d: 0.125 }, { f: C4, d: 0.125 },
+            { f: F3, d: 0.125 }, { f: A3, d: 0.125 }, { f: C4, d: 0.125 }, { f: F4, d: 0.125 },
+            { f: A4, d: 0.125 }, { f: F4, d: 0.125 }, { f: C4, d: 0.125 }, { f: A3, d: 0.125 },
+            { f: G3, d: 0.125 }, { f: B3, d: 0.125 }, { f: D4, d: 0.125 }, { f: G4, d: 0.125 },
+            { f: B4, d: 0.25  }, { f: G4, d: 0.25  }, { f: 0,  d: 0.25  }
         ];
     }
 
@@ -282,7 +337,7 @@ class SoundSystem {
         return !this.muted;
     }
 
-    playTone(freq, duration, type = 'square', startGain = 0.1) {
+    playTone(freq, duration, type = 'square', startGain = 0.08) {
         if (this.muted || !this.ctx || freq === 0) return;
         
         const osc = this.ctx.createOscillator();
@@ -362,17 +417,19 @@ class SoundSystem {
         const currentMelody = this.currentMelodyIndex === 0 ? this.melody1 : this.melody2;
         const note = currentMelody[this.noteIndex];
         
-        if (note.f > 0) this.playTone(note.f, note.d, 'triangle', 0.04);
+        if (note.f > 0) {
+            // Мягкий прямоугольный огибающий звук для ретро-звучания
+            this.playTone(note.f, note.d, 'triangle', 0.05);
+        }
         
         this.noteIndex++;
         if (this.noteIndex >= currentMelody.length) {
             this.noteIndex = 0;
-            // Переключаем мелодию после полного проигрывания
+            // Автоматическое переключение на следующую мелодию после завершения текущей
             this.currentMelodyIndex = (this.currentMelodyIndex + 1) % 2; 
         }
         
-        // Планируем следующую ноту с учетом её длины
-        this.musicTimer = setTimeout(() => this.playNextNote(), note.d * 1000 + 10);
+        this.musicTimer = setTimeout(() => this.playNextNote(), note.d * 1000);
     }
 
     stopMusic() {
@@ -481,7 +538,6 @@ function resetGame() {
     gameOver = false;
     isPaused = false;
     
-    // Сброс скоростей до базовых значений
     spawnCooldown = 0;
     baseSpawnInterval = 70;
     crane.baseSpeed = 10;
@@ -539,7 +595,7 @@ function triggerCraneSpawn() {
     crane.targetX = col1 * BLOCK_SIZE;
     crane.crateType = getRandomCrateType();
 
-    // ВЕРОЯТНОСТЬ ДВОЙНОГО ЯЩИКА - 10%
+    // 10% ШАНС ВЫПАДЕНИЯ ДВОЙНОГО ЯЩИКА
     const isDualDrop = Math.random() < 0.10;
     if (isDualDrop) {
         let col2 = Math.floor(Math.random() * COLS);
@@ -702,12 +758,12 @@ function checkLines() {
                 }
 
                 score += 150;
-                level++; // ПОВЫШЕНИЕ УРОВНЯ
+                level++;
                 
                 // УВЕЛИЧЕНИЕ СКОРОСТИ НА 10%
-                baseSpawnInterval = Math.max(15, baseSpawnInterval * 0.9); // интервал спавна быстрее
-                crane.baseSpeed *= 1.1; // кран ездит быстрее
-                crane.fixedDropSpeed *= 1.1; // груз падает быстрее
+                baseSpawnInterval = Math.max(15, baseSpawnInterval * 0.9);
+                crane.baseSpeed *= 1.1;
+                crane.fixedDropSpeed *= 1.1;
 
                 scoreEl.innerText = score.toString().padStart(4, '0');
                 levelEl.innerText = level.toString().padStart(2, '0');
