@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stack Attack - Extended Soundtrack</title>
+    <title>Stack Attack - Advanced Difficulty & Level Up</title>
     <style>
         :root {
             --clr-bg: #010a02;
@@ -255,9 +255,9 @@ class SoundSystem {
             { f: B4, d: 0.50 }, { f: G4, d: 0.50 },
 
             { f: C5, d: 0.375 }, { f: D5, d: 0.125 }, { f: E5, d: 0.25 }, { f: C5, d: 0.25 },
-            { f: A4, d: 0.25 }, { f: F4, d: 0.25 }, { f: G4, d: 0.50 },
+            { f: A4, d: 0.25 },  { f: F4, d: 0.25 },  { f: G4, d: 0.50 },
             { f: C5, d: 0.375 }, { f: D5, d: 0.125 }, { f: E5, d: 0.25 }, { f: G5, d: 0.25 },
-            { f: F5, d: 0.50 }, { f: D5, d: 0.50 },
+            { f: F5, d: 0.50 },  { f: D5, d: 0.50 },
 
             { f: E5, d: 0.25 }, { f: D5, d: 0.25 }, { f: C5, d: 0.25 }, { f: B4, d: 0.25 },
             { f: A4, d: 0.25 }, { f: G4, d: 0.25 }, { f: F4, d: 0.25 }, { f: E4, d: 0.25 },
@@ -446,9 +446,15 @@ ctx.imageSmoothingEnabled = false;
 
 let gameStarted = false;
 let selectedDifficulty = null; // 'EASY', 'MEDIUM', 'HARD'
-let speedMultiplierRate = 0.10; // 10%, 15%, 20%
+let speedMultiplierRate = 0.15; // 15%, 20%, 25%
+let doubleBlockChance = 0.0;    // 0% для EASY/MEDIUM, 25% для HARD
+
 const INITIAL_SPAWN_INTERVAL = 70;
-const MIN_SPAWN_INTERVAL = INITIAL_SPAWN_INTERVAL * (1 - 0.80); // Максимум +80% к скорости (интервал 20% от начального)
+// Предел +200% к скорости => интервал составляет 1 / (1 + 2.00) = 1/3 от начального
+const MIN_SPAWN_INTERVAL = INITIAL_SPAWN_INTERVAL / 3;
+
+// Поп-ап уведомления о смене уровня
+let levelUpNotification = { text: '', timer: 0, maxTimer: 45 };
 
 audioToggleBtn.addEventListener('click', () => {
     const active = sound.toggleMute();
@@ -487,10 +493,10 @@ let lives = 3;
 let gameOver = false;
 let isPaused = false;
 
-// Кнопки выбора сложности на стартовом экране
-const easyBtn = { x: 200, y: 320, w: 300, h: 45, mode: 'EASY', rate: 0.10 };
-const medBtn  = { x: 200, y: 380, w: 300, h: 45, mode: 'MEDIUM', rate: 0.15 };
-const hardBtn = { x: 200, y: 440, w: 300, h: 45, mode: 'HARD', rate: 0.20 };
+// Меню выбора сложности на стартовом экране
+const easyBtn = { x: 200, y: 320, w: 300, h: 45, mode: 'EASY', rate: 0.15, doubleChance: 0.0 };
+const medBtn  = { x: 200, y: 380, w: 300, h: 45, mode: 'MEDIUM', rate: 0.20, doubleChance: 0.0 };
+const hardBtn = { x: 200, y: 440, w: 300, h: 45, mode: 'HARD', rate: 0.25, doubleChance: 0.25 };
 
 const restartBtn = { x: 250, y: 380, w: 200, h: 50 };
 
@@ -532,10 +538,11 @@ function updateLivesDisplay() {
     livesEl.innerText = "♥".repeat(Math.max(0, lives));
 }
 
-function startGame(difficulty, rate) {
+function startGame(difficulty, rate, doubleChance) {
     sound.init();
     selectedDifficulty = difficulty;
     speedMultiplierRate = rate;
+    doubleBlockChance = doubleChance;
     gameStarted = true;
     resetGame();
 }
@@ -557,6 +564,8 @@ function resetGame() {
     fallingCrates = [];
     crane.state = 'idle';
     crane.xPixel = -100;
+
+    levelUpNotification.timer = 0;
 
     player.xPixel = 6 * BLOCK_SIZE;
     player.yPixel = (ROWS - 1) * BLOCK_SIZE;
@@ -604,7 +613,8 @@ function triggerCraneSpawn() {
     crane.targetX = col1 * BLOCK_SIZE;
     crane.crateType = getRandomCrateType();
 
-    const isDualDrop = Math.random() < 0.10;
+    // Шанс двойного блока зависит от режима сложности (на HARD ровно 25%)
+    const isDualDrop = Math.random() < doubleBlockChance;
     if (isDualDrop) {
         let col2 = Math.floor(Math.random() * COLS);
         let attempts = 0;
@@ -647,9 +657,9 @@ function togglePause() {
 document.addEventListener('keydown', (e) => {
     sound.init(); 
     if (!gameStarted) {
-        if (e.code === 'Digit1' || e.code === 'Numpad1') startGame('EASY', 0.10);
-        if (e.code === 'Digit2' || e.code === 'Numpad2') startGame('MEDIUM', 0.15);
-        if (e.code === 'Digit3' || e.code === 'Numpad3') startGame('HARD', 0.20);
+        if (e.code === 'Digit1' || e.code === 'Numpad1') startGame(easyBtn.mode, easyBtn.rate, easyBtn.doubleChance);
+        if (e.code === 'Digit2' || e.code === 'Numpad2') startGame(medBtn.mode, medBtn.rate, medBtn.doubleChance);
+        if (e.code === 'Digit3' || e.code === 'Numpad3') startGame(hardBtn.mode, hardBtn.rate, hardBtn.doubleChance);
         return;
     }
     if (gameOver && (e.code === 'Space' || e.code === 'Enter')) {
@@ -700,13 +710,13 @@ canvas.addEventListener('click', (e) => {
     if (!gameStarted) {
         if (mouseX >= easyBtn.x && mouseX <= easyBtn.x + easyBtn.w &&
             mouseY >= easyBtn.y && mouseY <= easyBtn.y + easyBtn.h) {
-            startGame(easyBtn.mode, easyBtn.rate);
+            startGame(easyBtn.mode, easyBtn.rate, easyBtn.doubleChance);
         } else if (mouseX >= medBtn.x && mouseX <= medBtn.x + medBtn.w &&
             mouseY >= medBtn.y && mouseY <= medBtn.y + medBtn.h) {
-            startGame(medBtn.mode, medBtn.rate);
+            startGame(medBtn.mode, medBtn.rate, medBtn.doubleChance);
         } else if (mouseX >= hardBtn.x && mouseX <= hardBtn.x + hardBtn.w &&
             mouseY >= hardBtn.y && mouseY <= hardBtn.y + hardBtn.h) {
-            startGame(hardBtn.mode, hardBtn.rate);
+            startGame(hardBtn.mode, hardBtn.rate, hardBtn.doubleChance);
         }
         return;
     }
@@ -789,11 +799,18 @@ function checkLines() {
 
                 score += 150;
                 level++;
+
+                // Вызов плавающей надписи NEXT LEVEL X
+                levelUpNotification = {
+                    text: `NEXT LEVEL ${level}`,
+                    timer: 45,
+                    maxTimer: 45
+                };
                 
-                // Ускорение спавна в зависимости от уровня сложности, с ограничением в +80%
+                // Ускорение спавна в соответствии с выбором сложности. Порог капа — +200% к начальной скорости
                 baseSpawnInterval = Math.max(MIN_SPAWN_INTERVAL, baseSpawnInterval * (1 - speedMultiplierRate));
-                crane.baseSpeed = Math.min(18, crane.baseSpeed * (1 + speedMultiplierRate * 0.5));
-                crane.fixedDropSpeed = Math.min(6.3, crane.fixedDropSpeed * (1 + speedMultiplierRate * 0.5));
+                crane.baseSpeed = Math.min(20, crane.baseSpeed * (1 + speedMultiplierRate * 0.5));
+                crane.fixedDropSpeed = Math.min(7.0, crane.fixedDropSpeed * (1 + speedMultiplierRate * 0.5));
 
                 scoreEl.innerText = score.toString().padStart(4, '0');
                 levelEl.innerText = level.toString().padStart(2, '0');
@@ -813,6 +830,10 @@ function isColliding(rect1, rect2) {
 
 function update() {
     if (!gameStarted || gameOver || isPaused) return;
+
+    if (levelUpNotification.timer > 0) {
+        levelUpNotification.timer--;
+    }
 
     if (player.invincibleTimer > 0) player.invincibleTimer--;
 
@@ -1188,7 +1209,7 @@ function drawMenuButton(btn, text, subtext, colors) {
     ctx.fillText(text, btn.x + 15, btn.y + 28);
 
     ctx.font = 'bold 12px "Courier New"';
-    ctx.fillText(subtext, btn.x + 180, btn.y + 28);
+    ctx.fillText(subtext, btn.x + 175, btn.y + 28);
 }
 
 function draw() {
@@ -1211,13 +1232,13 @@ function draw() {
         ctx.font = '16px "Courier New"';
         ctx.fillText("SELECT DIFFICULTY:", 250, 270);
 
-        drawMenuButton(easyBtn, "[1] EASY", "+10%/lvl", colors);
-        drawMenuButton(medBtn,  "[2] MEDIUM", "+15%/lvl", colors);
-        drawMenuButton(hardBtn, "[3] HARD", "+20%/lvl", colors);
+        drawMenuButton(easyBtn, "[1] EASY", "+15%/lvl", colors);
+        drawMenuButton(medBtn,  "[2] MEDIUM", "+20%/lvl", colors);
+        drawMenuButton(hardBtn, "[3] HARD", "+25%/lvl", colors);
 
         ctx.fillStyle = colors.bright;
         ctx.font = '12px "Courier New"';
-        ctx.fillText("MAX SPEED LIMIT: +80%", 260, 530);
+        ctx.fillText("MAX SPEED LIMIT: +200% | HARD: DUAL 25%", 200, 530);
         return;
     }
 
@@ -1242,6 +1263,21 @@ function draw() {
 
     if (player.alive) { drawPlayer(player.xPixel, player.yPixel, colors); }
 
+    // Анимация поп-апа "NEXT LEVEL X"
+    if (levelUpNotification.timer > 0) {
+        ctx.save();
+        const progress = levelUpNotification.timer / levelUpNotification.maxTimer;
+        const offsetY = (1 - progress) * 20; // движение снизу вверх
+        
+        ctx.fillStyle = colors.bright;
+        ctx.font = 'bold 36px "Courier New"';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = colors.on;
+        ctx.shadowBlur = 10;
+        ctx.fillText(levelUpNotification.text, canvas.width / 2, 220 - offsetY);
+        ctx.restore();
+    }
+
     if (isPaused && !gameOver) {
         ctx.fillStyle = colors.bg;
         ctx.fillRect(200, 300, 300, 100);
@@ -1251,6 +1287,7 @@ function draw() {
 
         ctx.fillStyle = colors.on;
         ctx.font = '26px "Courier New"';
+        ctx.textAlign = 'left';
         ctx.fillText("|| PAUSE", 280, 358);
     }
 
@@ -1263,6 +1300,7 @@ function draw() {
 
         ctx.fillStyle = colors.on;
         ctx.font = '28px "Courier New"';
+        ctx.textAlign = 'left';
         ctx.fillText("GAME OVER", 280, 310);
 
         ctx.fillStyle = colors.on;
@@ -1286,3 +1324,4 @@ gameLoop();
 
 </body>
 </html>
+
