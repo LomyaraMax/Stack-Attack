@@ -241,9 +241,8 @@ class SoundSystem {
 
         const C4=261.63, D4=293.66, E4=329.63, F4=349.23, G4=392.00, A4=440.00, B4=493.88;
         const C5=523.25, D5=587.33, E5=659.25, F5=698.46, G5=783.99, A5=880.00, B5=987.77, C6=1046.50;
-        const C3=130.81, E3=164.81, G3=196.00, A3=220.00, B3=246.94, F3=174.61, D4_d=293.66;
+        const C3=130.81, E3=164.81, G3=196.00, A3=220.00, B3=246.94, F3=174.61;
 
-        // 1-минутная тема (60 сек)
         this.melody1 = [
             { f: C4, d: 0.25 }, { f: E4, d: 0.25 }, { f: G4, d: 0.25 }, { f: C5, d: 0.25 },
             { f: B4, d: 0.25 }, { f: G4, d: 0.25 }, { f: E4, d: 0.25 }, { f: D4, d: 0.25 },
@@ -446,6 +445,10 @@ const audioToggleBtn = document.getElementById('audio-toggle');
 ctx.imageSmoothingEnabled = false;
 
 let gameStarted = false;
+let selectedDifficulty = null; // 'EASY', 'MEDIUM', 'HARD'
+let speedMultiplierRate = 0.10; // 10%, 15%, 20%
+const INITIAL_SPAWN_INTERVAL = 70;
+const MIN_SPAWN_INTERVAL = INITIAL_SPAWN_INTERVAL * (1 - 0.80); // Максимум +80% к скорости (интервал 20% от начального)
 
 audioToggleBtn.addEventListener('click', () => {
     const active = sound.toggleMute();
@@ -484,7 +487,11 @@ let lives = 3;
 let gameOver = false;
 let isPaused = false;
 
-const startBtn = { x: 220, y: 380, w: 260, h: 50 };
+// Кнопки выбора сложности на стартовом экране
+const easyBtn = { x: 200, y: 320, w: 300, h: 45, mode: 'EASY', rate: 0.10 };
+const medBtn  = { x: 200, y: 380, w: 300, h: 45, mode: 'MEDIUM', rate: 0.15 };
+const hardBtn = { x: 200, y: 440, w: 300, h: 45, mode: 'HARD', rate: 0.20 };
+
 const restartBtn = { x: 250, y: 380, w: 200, h: 50 };
 
 let grid = Array(ROWS).fill(null).map(() => Array(COLS).fill(null));
@@ -507,7 +514,7 @@ const player = {
 
 let fallingCrates = [];
 let spawnCooldown = 0;
-let baseSpawnInterval = 70;
+let baseSpawnInterval = INITIAL_SPAWN_INTERVAL;
 
 const crane = {
     xPixel: -100,
@@ -525,8 +532,10 @@ function updateLivesDisplay() {
     livesEl.innerText = "♥".repeat(Math.max(0, lives));
 }
 
-function startGame() {
+function startGame(difficulty, rate) {
     sound.init();
+    selectedDifficulty = difficulty;
+    speedMultiplierRate = rate;
     gameStarted = true;
     resetGame();
 }
@@ -539,7 +548,7 @@ function resetGame() {
     isPaused = false;
     
     spawnCooldown = 0;
-    baseSpawnInterval = 70;
+    baseSpawnInterval = INITIAL_SPAWN_INTERVAL;
     crane.baseSpeed = 10;
     crane.fixedDropSpeed = 3.5;
     
@@ -638,7 +647,9 @@ function togglePause() {
 document.addEventListener('keydown', (e) => {
     sound.init(); 
     if (!gameStarted) {
-        if (e.code === 'Space' || e.code === 'Enter') startGame();
+        if (e.code === 'Digit1' || e.code === 'Numpad1') startGame('EASY', 0.10);
+        if (e.code === 'Digit2' || e.code === 'Numpad2') startGame('MEDIUM', 0.15);
+        if (e.code === 'Digit3' || e.code === 'Numpad3') startGame('HARD', 0.20);
         return;
     }
     if (gameOver && (e.code === 'Space' || e.code === 'Enter')) {
@@ -664,7 +675,7 @@ function bindTouchButton(btnId, keyCode) {
     btn.addEventListener('touchstart', (e) => {
         e.preventDefault();
         sound.init();
-        if (!gameStarted) { startGame(); return; }
+        if (!gameStarted) { return; }
         if (gameOver) { resetGame(); return; }
         if (keyCode === 'KeyP') { togglePause(); return; }
         if (keyCode === 'Space' && !player.isJumping && !isPaused && player.alive) { startJump(); }
@@ -687,9 +698,15 @@ canvas.addEventListener('click', (e) => {
     const mouseY = (e.clientY - rect.top) * scaleY;
 
     if (!gameStarted) {
-        if (mouseX >= startBtn.x && mouseX <= startBtn.x + startBtn.w &&
-            mouseY >= startBtn.y && mouseY <= startBtn.y + startBtn.h) {
-            startGame();
+        if (mouseX >= easyBtn.x && mouseX <= easyBtn.x + easyBtn.w &&
+            mouseY >= easyBtn.y && mouseY <= easyBtn.y + easyBtn.h) {
+            startGame(easyBtn.mode, easyBtn.rate);
+        } else if (mouseX >= medBtn.x && mouseX <= medBtn.x + medBtn.w &&
+            mouseY >= medBtn.y && mouseY <= medBtn.y + medBtn.h) {
+            startGame(medBtn.mode, medBtn.rate);
+        } else if (mouseX >= hardBtn.x && mouseX <= hardBtn.x + hardBtn.w &&
+            mouseY >= hardBtn.y && mouseY <= hardBtn.y + hardBtn.h) {
+            startGame(hardBtn.mode, hardBtn.rate);
         }
         return;
     }
@@ -773,9 +790,10 @@ function checkLines() {
                 score += 150;
                 level++;
                 
-                baseSpawnInterval = Math.max(15, baseSpawnInterval * 0.9);
-                crane.baseSpeed *= 1.1;
-                crane.fixedDropSpeed *= 1.1;
+                // Ускорение спавна в зависимости от уровня сложности, с ограничением в +80%
+                baseSpawnInterval = Math.max(MIN_SPAWN_INTERVAL, baseSpawnInterval * (1 - speedMultiplierRate));
+                crane.baseSpeed = Math.min(18, crane.baseSpeed * (1 + speedMultiplierRate * 0.5));
+                crane.fixedDropSpeed = Math.min(6.3, crane.fixedDropSpeed * (1 + speedMultiplierRate * 0.5));
 
                 scoreEl.innerText = score.toString().padStart(4, '0');
                 levelEl.innerText = level.toString().padStart(2, '0');
@@ -1161,6 +1179,18 @@ function drawPlayer(x, y, colors) {
     ctx.fillRect(x + 28 - legOffset, y + 35, 10, 13);
 }
 
+function drawMenuButton(btn, text, subtext, colors) {
+    ctx.fillStyle = colors.on;
+    ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+
+    ctx.fillStyle = colors.bg;
+    ctx.font = 'bold 18px "Courier New"';
+    ctx.fillText(text, btn.x + 15, btn.y + 28);
+
+    ctx.font = 'bold 12px "Courier New"';
+    ctx.fillText(subtext, btn.x + 180, btn.y + 28);
+}
+
 function draw() {
     const colors = getThemeColors();
 
@@ -1169,21 +1199,25 @@ function draw() {
 
     if (!gameStarted) {
         ctx.fillStyle = colors.bg;
-        ctx.fillRect(100, 200, 500, 300);
+        ctx.fillRect(80, 150, 540, 420);
         ctx.strokeStyle = colors.on;
         ctx.lineWidth = 4;
-        ctx.strokeRect(100, 200, 500, 300);
+        ctx.strokeRect(80, 150, 540, 420);
 
         ctx.fillStyle = colors.on;
         ctx.font = '32px "Courier New"';
-        ctx.fillText("STACK ATTACK", 240, 280);
+        ctx.fillText("STACK ATTACK", 240, 220);
 
-        ctx.fillStyle = colors.on;
-        ctx.fillRect(startBtn.x, startBtn.y, startBtn.w, startBtn.h);
+        ctx.font = '16px "Courier New"';
+        ctx.fillText("SELECT DIFFICULTY:", 250, 270);
 
-        ctx.fillStyle = colors.bg;
-        ctx.font = 'bold 22px "Courier New"';
-        ctx.fillText("CLICK TO START", startBtn.x + 35, startBtn.y + 32);
+        drawMenuButton(easyBtn, "[1] EASY", "+10%/lvl", colors);
+        drawMenuButton(medBtn,  "[2] MEDIUM", "+15%/lvl", colors);
+        drawMenuButton(hardBtn, "[3] HARD", "+20%/lvl", colors);
+
+        ctx.fillStyle = colors.bright;
+        ctx.font = '12px "Courier New"';
+        ctx.fillText("MAX SPEED LIMIT: +80%", 260, 530);
         return;
     }
 
